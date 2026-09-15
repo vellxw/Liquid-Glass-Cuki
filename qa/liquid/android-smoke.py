@@ -146,7 +146,9 @@ def switch(label):
     n=find(hierarchy(),label);assert n is not None,label;tap(n);time.sleep(.65)
 
 # Compare the same button rectangle with its original native SVG before recording.
-switch('Referencia estática');time.sleep(1.5);original=capture('original-svg-rest')
+switch('Referencia estática');time.sleep(1.5)
+assert find(hierarchy(),'lab-register') is None,'Static baseline still contains the interaction renderer'
+original=capture('original-svg-rest')
 switch('Referencia estática');time.sleep(.5)
 # Persistent renderer is already visible in REST. No discarded warmup contact.
 
@@ -185,10 +187,10 @@ switch('Deformación local')
 run_path('I-repeat-quick-tap',path_events([point(.44,.34)]*2,130));counter(9)
 run_path('J-repeat-quick-tap',path_events([point(.72,.45)]*2,150));counter(10)
 final=capture('final-rest')
+switch('Acompañamiento del contenido')
 switch('Iluminación de contacto');geometry_rest=capture('geometry-rest')
 geometry=run_path('K-geometry-without-lighting',path_events([point(.55,.45)]*2,2300),[(1.1,'geometry-hold')]);counter(11)
 switch('Iluminación de contacto')
-switch('Acompañamiento del contenido')
 run_path('L-material-alone-drag',path_events(linear(point(.2,.4),point(.8,.4)),2200,300,300));counter(12)
 switch('Acompañamiento del contenido')
 switch('Forzar movimiento reducido')
@@ -205,7 +207,7 @@ adb('pull','/sdcard/local-glass.mp4',str(OUT/'native-all-actions.mp4'))
 (OUT/'surfaceflinger-full.txt').write_bytes(adb('shell','dumpsys','SurfaceFlinger','--timestats','-dump'))
 
 # Report measured differences even if an acceptance assertion fails.
-result={'native':'Expo Go / Android API35 / software GPU', 'button':box,
+result={'native':'Expo Go / production JavaScript / Android API35 / software GPU', 'button':box,
  'restToHoldMAE':mae(rest,pressed),'hold1toHold2MAE':stable,'restToSettledMAE':mae(rest,settled),
  'leftToRightMAE':mae(shots['drag-left'],shots['drag-right']),
  'gridRestToHoldMAE':mae(grid_rest,proof['grid-left']),

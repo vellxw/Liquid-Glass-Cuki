@@ -64,7 +64,7 @@ export function RegisterPhysicsLab(){
           disabled={disabled} forceReducedMotion={reduced} onPress={()=>setCommits(v=>v+1)} onPhase={onPhase}>
           {physics=><>
             <GlassButton variant="primary" label="Registrar +" scale={scale} blurTarget={target} interaction={physics}
-              lighting={lighting} opticsEnabled={enabled} mechanicalSupport={mechanical} debug={debug} proofGrid={grid} onSurfaceReady={onReady}/>
+              lighting={lighting} opticsEnabled={enabled} contentFollow={mechanical} debug={debug} proofGrid={grid} onSurfaceReady={onReady}/>
             {debug && <Probe physics={physics} onReport={onReport} debug={debug}/>}
           </>}
         </LiquidPressable>}

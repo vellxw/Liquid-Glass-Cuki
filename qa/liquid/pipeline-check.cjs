@@ -5,12 +5,11 @@ const root=path.resolve(__dirname,'../..'),l=createLoader();
 const {volumeSample,contentDepth,VOLUME}=l.load(path.join(root,'src/liquid/volumeField.ts'));
 const read=f=>fs.readFileSync(path.join(root,f),'utf8');
 let count=0;function test(name,f){f();count++;console.log('PASS volume: '+name);}
-test('XML is derived from the untouched approved React SVG',()=>{
- const {RegisterButtonMaterial}=l.load(path.join(root,'src/home/RegisterButtonMaterial.tsx'));
- const {materialXml}=l.load(path.join(root,'src/liquid/materialXml.ts'));
- const native=RegisterButtonMaterial({id:'cache'});
- const normalized=s=>s.replace(/\s+(?=>)/g,'').replace(/\s+/g,' ');
- assert.equal(normalized(materialXml(native)),normalized(serialize(native)));
+test('late native cache data is installed only in complete REST',()=>{
+ const {canInstallCache}=l.load(path.join(root,'src/liquid/useNativeMaterialCache.ts'));
+ assert.equal(canInstallCache(false,0),true);
+ for(const p of [0,.1,1,-.01])assert.equal(canInstallCache(true,p),false);
+ for(const p of [.00001,.2,1,-.01])assert.equal(canInstallCache(false,p),false);
 });
 test('the true gradient matches finite differences throughout the plate',()=>{
  const e=1e-4;for(let x=15;x<225;x+=6)for(let y=3;y<58;y+=5){
@@ -29,13 +28,16 @@ test('native letters only have bounded sub-dp rigid follow-through',()=>{
  for(const p of [-.03,0,.5,1,1.03])for(let x=0;x<230;x+=3){const d=contentDepth(150,30,x,30,p);assert.ok(d>=0&&d<=.9);}
  assert.equal(contentDepth(150,30,150,30,0),0);assert.equal(contentDepth(150,30,150,30,1,true),.12);
 });
-test('no press-time swapping, viewport snapshots, cadence or microtask loops',()=>{
+test('cache preparation is not coupled to every press or render frame',()=>{
  const s=read('src/liquid/VolumeSurface.tsx');assert.doesNotMatch(s,/makeImageFromView|nativeBacking|activeTexture|useFrameCallback|scheduleOnRN|setTimeout|setInterval/);
- assert.match(s,/useMemo/);assert.match(s,/pressure:enabled\?pressure.value:0/);
+ assert.match(s,/pressure:enabled\?pressure.value:0/);
+ const c=read('src/liquid/useNativeMaterialCache.ts');assert.match(c,/if\(started.current\)return/);assert.match(c,/canInstallCache/);
+ assert.doesNotMatch(c,/withTiming|withSpring|useFrameCallback/);
 });
 test('underlay is a distinct shader input, actually refracted',()=>{
  const s=read('src/liquid/volumeShader.ts');assert.match(s,/uniform shader substrate/);assert.match(s,/substrate.eval\(sampleAt\)/);
  assert.match(read('src/liquid/VolumeSurface.tsx'),/substrate\?:SkImage/);
+ assert.match(s,/substrate.eval\(sampleAt\).rgb-substrate.eval\(p\).rgb/);
 });
 test('optical difference derives from both resting and pressed normals',()=>{
  const s=read('src/liquid/volumeShader.ts');assert.match(s,/baseGrad/);assert.match(s,/spec\(n,cold\)-spec\(n0,cold\)/);

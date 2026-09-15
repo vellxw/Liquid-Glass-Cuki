@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Real native input, Skia rendering and Android screenrecord; no host-rendered video.
+# Production JavaScript inside Expo Go, NOT a standalone release APK.
 set -euo pipefail
 mkdir -p qa/liquid/native-output qa/liquid/.injector
 SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
@@ -13,7 +14,7 @@ adb push qa/liquid/.injector/local-input.jar /data/local/tmp/local-input.jar
 adb shell wm size 720x1600
 adb shell wm density 280
 adb reverse tcp:8081 tcp:8081
-EXPO_NO_TELEMETRY=1 CI=1 EXPO_PUBLIC_LIQUID_LAB=1 npx expo start --go --android --localhost --port 8081 --clear > qa/liquid/native-output/metro.log 2>&1 &
+EXPO_NO_TELEMETRY=1 CI=1 EXPO_PUBLIC_LIQUID_LAB=1 npx expo start --go --no-dev --minify --android --localhost --port 8081 --clear > qa/liquid/native-output/metro.log 2>&1 &
 metro=$!
 cleanup(){
   adb logcat -d > qa/liquid/native-output/logcat.txt || true
@@ -26,3 +27,4 @@ cleanup(){
 trap cleanup EXIT
 python qa/liquid/android-smoke.py
 python qa/liquid/native-perf.py
+python qa/liquid/home-smoke.py

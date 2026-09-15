@@ -5,7 +5,7 @@ export const VOLUME = {
   projection:0.78, refraction:9.5, maxRefraction:3.4,
   contentTravel:0.9, entrance:86,
 } as const;
-const sat=(x:number)=>Math.max(0,Math.min(1,x));
+const sat=(x:number)=>{ 'worklet'; return Math.max(0,Math.min(1,x)); };
 /** Shared compact, C2 contact kernel: inner depression plus visible shoulder. */
 export function volumeSample(x:number,y:number,cx:number,cy:number,w:number,h:number,p:number,depth:number=VOLUME.depth){
   'worklet';
@@ -21,7 +21,7 @@ export function volumeSample(x:number,y:number,cx:number,cy:number,w:number,h:nu
   const z=-depth*p*k*pin;
   const gx=-depth*p*(dk*dx*pin+k*dPin*nx),gy=-depth*p*(dk*dy*pin+k*dPin*ny);
   let sx=gx*VOLUME.refraction*pin, sy=(gy*VOLUME.refraction+z*VOLUME.projection)*pin;
-  const limit=Math.min(1,VOLUME.maxRefraction/Math.max(1e-9,Math.hypot(sx,sy)));
+  const limit=VOLUME.maxRefraction/Math.sqrt(VOLUME.maxRefraction**2+sx*sx+sy*sy);
   sx*=limit;sy*=limit;
   return {z,gx,gy,sx,sy,k,pin,edge};
 }

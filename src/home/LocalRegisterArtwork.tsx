@@ -8,37 +8,37 @@ import { HomeIcon } from './HomeIcon';
 import { HomeText } from './HomeText';
 import { GLASS,HOME_REFERENCE,PX } from './tokens';
 import { VolumeSurface,makeProofSubstrate } from '../liquid/VolumeSurface';
-import { materialXml } from '../liquid/materialXml';
 import { contentDepth } from '../liquid/volumeField';
 import type { LiquidPhysics } from '../liquid/types';
 
 type Props={physics:LiquidPhysics;scale:number;label:string;fontFamily?:string;
   blurTarget?:RefObject<View|null>;enabled?:boolean;debug?:boolean;proofGrid?:boolean;
-  mechanicalSupport?:boolean;lighting?:boolean;onReady?:(ready:boolean)=>void};
+  contentFollow?:boolean;lighting?:boolean;onReady?:(ready:boolean)=>void};
 /** The optical surface is always Skia. No capsule scale/down, no per-press snapshots.
  * Crisp content has at most .9dp local follow-through. Approved artwork is unchanged. */
 export const LocalRegisterArtwork=memo(function LocalRegisterArtwork({physics,scale,label,fontFamily,blurTarget,enabled=true,
-  debug=false,proofGrid=false,mechanicalSupport=true,lighting=true,onReady}:Props){
+  debug=false,proofGrid=false,contentFollow=true,lighting=true,onReady}:Props){
   const id=`volume${useId().replace(/[^a-zA-Z0-9]/g,'')}`,s=PX*scale,w=460*s,h=122*s;
   const canBlur=Platform.OS!=='android'||!!blurTarget;
   const [supported,setSupported]=useState(true);
   const ready=useCallback((value:boolean)=>{setSupported(value);onReady?.(value);},[onReady]);
-  const xml=useMemo(()=>`<svg xmlns="http://www.w3.org/2000/svg" width="460" height="122" viewBox="0 0 460 122">${materialXml(RegisterButtonMaterial({id:'cache'}))}</svg>`,[]);
   const substrate=useMemo(()=>proofGrid?makeProofSubstrate(w,h):null,[proofGrid,w,h]);
-  const circleStyle=useAnimatedStyle(()=>({transform:[{translateY:enabled && mechanicalSupport && supported?
-    contentDepth(118*s,61*s,physics.contactX.value,physics.contactY.value,physics.pressure.value,physics.reduceMotion.value):0}]}),[enabled,mechanicalSupport,supported,s]);
-  const labelStyle=useAnimatedStyle(()=>({transform:[{translateY:enabled && mechanicalSupport && supported?
-    contentDepth(300*s,61*s,physics.contactX.value,physics.contactY.value,physics.pressure.value,physics.reduceMotion.value):0}]}),[enabled,mechanicalSupport,supported,s]);
+  const circleStyle=useAnimatedStyle(()=>({transform:[{translateY:enabled && contentFollow && supported?
+    contentDepth(118*s,61*s,physics.contactX.value,physics.contactY.value,physics.pressure.value,physics.reduceMotion.value):0}]}),[enabled,contentFollow,supported,s]);
+  const labelStyle=useAnimatedStyle(()=>({transform:[{translateY:enabled && contentFollow && supported?
+    contentDepth(300*s,61*s,physics.contactX.value,physics.contactY.value,physics.pressure.value,physics.reduceMotion.value):0}]}),[enabled,contentFollow,supported,s]);
   return <View pointerEvents="none" style={{width:w,height:h}}>
     {canBlur && <View style={[StyleSheet.absoluteFill,{borderRadius:h/2,overflow:'hidden'}]}>
       <BlurView intensity={GLASS.blur} tint="dark" blurTarget={blurTarget}
         blurMethod={Platform.OS==='android'?'dimezisBlurViewSdk31Plus':'none'}
         style={[StyleSheet.absoluteFill,{opacity:GLASS.blurOpacity}]}/>
     </View>}
-    <VolumeSurface physics={physics} xml={xml} enabled={enabled} debug={debug} lighting={lighting} substrate={substrate} onReady={ready}/>
-    {!supported && <Svg width={w} height={h} viewBox="0 0 460 122" style={StyleSheet.absoluteFill}>
-      <RegisterButtonMaterial id={`${id}-fallback`}/>
-    </Svg>}
+    <VolumeSurface key={`${w}:${h}`} physics={physics} enabled={enabled} debug={debug} lighting={lighting}
+      substrate={substrate} backdropTarget={blurTarget} onReady={ready}>
+      <View style={[StyleSheet.absoluteFill,{borderRadius:h/2,overflow:'hidden'}]}>
+        <Svg width={w} height={h} viewBox="0 0 460 122"><RegisterButtonMaterial id={`${id}-material`}/></Svg>
+      </View>
+    </VolumeSurface>
     <Animated.View style={[StyleSheet.absoluteFill,circleStyle]}>
       <Svg width={w} height={h} viewBox="0 0 460 122">
         <Defs><LinearGradient id={`${id}-circle`} x1="0" y1="0" x2="1" y2="1">

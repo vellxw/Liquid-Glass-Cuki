@@ -89,7 +89,7 @@ test('the pressure coordinate recovers exactly',()=>{
  const a=volume.volumeSample(130,25,115,30,230,61,0);assert.ok(a.z===0&&a.sx===0&&a.sy===0);
  const h=harness();h.down();h.up();h.finish();assert.equal(h.physics.pressure.value,0);
 });
-test('there is one persistent material renderer, no view capture or backing switch',()=>{
+test('the prepared texture stays in the same renderer through the full gesture',()=>{
  const s=fs.readFileSync(path.join(root,'src/liquid/VolumeSurface.tsx'),'utf8');
  assert.match(s,/drawSvg/);assert.match(s,/<ImageShader/);assert.match(s,/useDerivedValue/);
  assert.doesNotMatch(s,/makeImageFromView|useAnimatedStyle|useFrameCallback|withRepeat|setInterval/);
@@ -100,7 +100,7 @@ test('native content stays outside shader and never changes scale',()=>{
 });
 test('ablation zeros optics AND content travel',()=>{
  const s=fs.readFileSync(path.join(root,'src/liquid/VolumeSurface.tsx'),'utf8');assert.match(s,/pressure:enabled\?pressure.value:0/);
- const a=fs.readFileSync(path.join(root,'src/home/LocalRegisterArtwork.tsx'),'utf8');assert.match(a,/enabled && mechanicalSupport && supported/);
+ const a=fs.readFileSync(path.join(root,'src/home/LocalRegisterArtwork.tsx'),'utf8');assert.match(a,/enabled && contentFollow && supported/);
 });
 
 test('only PrimaryRegisterButton adopts the new engine',()=>{

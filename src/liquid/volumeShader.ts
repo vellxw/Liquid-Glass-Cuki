@@ -20,17 +20,20 @@ float spec(float3 n,float3 h){
   float v16=v8*v8; float v32=v16*v16; return v32*v32; // environmental lobe, exponent 64
 }
 half4 over(half4 a,half4 b){return a+b*(1.0-a.a);}
+half4 resting(float2 p){
+  half4 m=material.eval(p);
+  return proof==1.0?over(m,substrate.eval(p)):m;
+}
 half4 main(float2 p){
-  half4 original=material.eval(p);
-  half4 bg=substrate.eval(p);
+  if(pressure==0.0) return resting(p);
   float rr=size.y*.5;
   float2 ev=p-float2(clamp(p.x,rr,size.x-rr),rr);
   float el=length(ev),edge=rr-el;
   // The silhouette/outermost rim are the SAME pixels in every interaction state.
-  if(edge<=2.4 || pressure==0.0) return over(original,bg);
+  if(edge<=2.4) return resting(p);
   float2 d=p-touch;
   float q=dot(d,d)/(radius*radius);
-  if(q>=2.25) return over(original,bg);
+  if(q>=2.25) return resting(p);
 
   float a=max(0.0,1.0-q),b=max(0.0,1.0-q/2.25);
   float k=.65*a*a*a+.35*b*b*b;
@@ -49,7 +52,7 @@ half4 main(float2 p){
   float3 n=normalize(float3(-(baseGrad+grad),1.0));
   // Inward height shifts the inner face in perspective. Slopes refract independently.
   float2 shift=(grad*9.5+float2(0.0,z*.78))*pin;
-  shift*=min(1.0,3.4/max(.0001,length(shift)));
+  shift*=3.4/sqrt(3.4*3.4+dot(shift,shift));
   float2 sampleAt=clamp(p+shift,float2(.5),size-float2(.5));
   half4 face=material.eval(sampleAt);
   // Preserve alpha/coverage: no opaque pressure disk, no changed outer silhouette.
@@ -70,7 +73,14 @@ half4 main(float2 p){
   }
   half4 deformed=half4(half3(clamp(rgb,0.0,1.0)*alpha),face.a);
   // Controlled underlay is a distinct layer genuinely sampled through the lens.
-  return over(deformed,substrate.eval(sampleAt));
+  if(proof==1.0) return over(deformed,substrate.eval(sampleAt));
+  if(proof==2.0){
+    // Native underlay is a captured layout-time source. Apply only its refracted
+    // color difference so REST and the native blur's baseline remain unchanged.
+    half3 delta=substrate.eval(sampleAt).rgb-substrate.eval(p).rgb;
+    deformed.rgb=clamp(deformed.rgb+delta*(1.0-deformed.a),half3(0.0),half3(deformed.a));
+  }
+  return deformed;
 }
 `;
 /** Only a transparent fallback. A real controlled underlay is passed as ImageShader. */

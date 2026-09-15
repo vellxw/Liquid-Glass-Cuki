@@ -110,7 +110,7 @@ export function LiquidPressable({ width, height, style, label, onPress, disabled
       const id=interactionId.value;
       if (!success) scheduleOnRN(dispatch,{phase:'cancel',interactionId:id,timestamp:Date.now()});
       // A bounded sub-dp relaxation of the contact center, not translation of the button.
-      const kick=reduceMotion.value || Date.now()-lastMotionTime.value>80 ? 0 : LOCAL_GLASS.releaseKick;
+      const kick=reduceMotion.value || Date.now()-lastMotionTime.value>LOCAL_GLASS.velocityExpiryMs ? 0 : LOCAL_GLASS.releaseKick;
       releaseX.value=Math.max(-kick,Math.min(kick,velocityX.value*.0006));
       releaseY.value=Math.max(-kick,Math.min(kick,velocityY.value*.0006));
       releaseX.value=withTiming(0,{duration:100,reduceMotion:ReduceMotion.Never});
