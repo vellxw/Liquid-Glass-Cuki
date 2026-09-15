@@ -25,9 +25,14 @@ def hierarchy():
     return ET.fromstring(text)
 
 def find(root, identifier):
-    for n in root.iter('node'):
-        if n.get('resource-id','').endswith(identifier) or n.get('content-desc') == identifier or n.get('text') == identifier:
-            return n
+    # A visible Text label may precede the actual Switch. Prefer IDs and
+    # content descriptions globally, not the first matching text sibling.
+    nodes = list(root.iter('node'))
+    for key in ['resource-id', 'content-desc', 'text']:
+        for n in nodes:
+            value = n.get(key, '')
+            if (key == 'resource-id' and value.endswith(identifier)) or value == identifier:
+                return n
     return None
 
 def bounds(n):
@@ -62,6 +67,13 @@ for attempt in range(55):
     time.sleep(4)
     try:
         root=hierarchy()
+        # Expo Go opens its developer sheet on first launch; it hides the app
+        # accessibility tree. Dismiss ONLY that identified sheet, not error UI.
+        if find(root,'Go home') is not None and find(root,'Reload') is not None:
+            close=find(root,'Close')
+            if close is not None:
+                tap(close)
+                continue
         ready=find(root,'lab-register')
         if ready is not None: break
         texts=' '.join(n.get('text','') for n in root.iter('node'))
@@ -111,6 +123,7 @@ counter(1)
 node=find(hierarchy(),'Deshabilitar Registrar')
 assert node is not None,'Disabled switch missing'
 tap(node)
+assert find(hierarchy(),'Deshabilitar Registrar').get('checked') == 'true', 'Disabled switch did not change'
 adb('shell','input','tap',str(x),str(y))
 time.sleep(.5)
 counter(1)
@@ -119,11 +132,18 @@ tap(find(hierarchy(),'Deshabilitar Registrar'))
 node=find(hierarchy(),'Forzar movimiento reducido')
 assert node is not None,'Reduced-motion switch missing'
 tap(node)
-adb('shell','input','tap',str(x),str(y))
+assert find(hierarchy(),'Forzar movimiento reducido').get('checked') == 'true', 'Reduced switch did not change'
+reduced_rest=capture('reduced-rest')
+hold=sp.Popen(['adb','shell','input','touchscreen','swipe',str(x),str(y),str(x),str(y),'1500'])
+time.sleep(.65)
+reduced_pressed=capture('reduced-pressed')
+hold.wait(timeout=8)
 time.sleep(.7)
 root=counter(2)
+reduced_mae=sum(ImageStat.Stat(ImageChops.difference(reduced_rest.crop(box),reduced_pressed.crop(box))).mean)/3
+assert reduced_mae < press_mae, 'Reduced motion must visibly limit the normal response'
 (OUT/'result.json').write_text(json.dumps({'native':'Android API 35 / Expo Go / software GPU / debug JS',
-  'pressROI_MAE':press_mae,'settledROI_MAE':settle_mae,
+  'pressROI_MAE':press_mae,'settledROI_MAE':settle_mae,'reducedPressROI_MAE':reduced_mae,
   'normalHoldCommit':True,'escapeCancelled':True,'disabledIgnored':True,'reducedCommit':True,
   'physicalHaptics':'not testable in emulator','release60fps':'not measured',
   'bounds':box},indent=2))
