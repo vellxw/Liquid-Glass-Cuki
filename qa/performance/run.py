@@ -33,12 +33,28 @@ def status(name):
                      'thermal':['dumpsys','thermalservice'],'battery':['dumpsys','battery']}.items():
         (O/f'{name}-{key}.txt').write_bytes(adb('shell',*args))
 
-tap(find(tree(),'lab-open-perf'))
-for _ in range(30):
+# Navigation may finish after the first accessibility snapshot. Only retry this
+# preparatory navigation, never a timed trial or failed application assertion.
+for attempt in range(20):
     t=tree()
-    if find(t,'perf-ready').get('text')=='Motor: listo':break
-    time.sleep(.2)
-else:raise RuntimeError('Benchmark material not ready')
+    texts=' '.join(n.get('text','') for n in t.iter('node'))
+    if any(error in texts for error in ['Uncaught Error','ReferenceError:','TypeError:','WorkletsError']):
+        snap('benchmark-runtime-error')
+        raise RuntimeError(texts[:2000])
+    try:
+        ready=find(t,'perf-ready')
+    except RuntimeError:
+        ready=None
+    if ready is not None and ready.get('text')=='Motor: listo':break
+    if ready is None:
+        try: launcher=find(t,'lab-open-perf')
+        except RuntimeError: launcher=None
+        if launcher is not None and attempt in [0,3,7]:tap(launcher)
+    time.sleep(.5)
+else:
+    snap('benchmark-not-ready')
+    (O/'benchmark-not-ready.xml').write_text(ET.tostring(t,encoding='unicode'))
+    raise RuntimeError('Benchmark navigation/material did not become ready')
 box=bounds(find(tree(),'perf-register'));a,b,c,d=box;w=c-a;h=d-b
 (O/'environment.json').write_text(json.dumps({'button':box,'size':adb('shell','wm','size').decode(),
  'density':adb('shell','wm','density').decode(),'release':adb('shell','getprop','ro.build.version.release').decode(),
