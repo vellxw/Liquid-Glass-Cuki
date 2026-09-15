@@ -61,7 +61,7 @@ export function RegisterPhysicsLab(){
     <BlurTargetView ref={target} style={StyleSheet.absoluteFill}/>
     <ScrollView contentContainerStyle={{paddingTop:insets.top+24,paddingHorizontal:16,paddingBottom:insets.bottom+80}}>
       <View style={styles.row}><Text style={styles.title}>Registrar · vidrio local</Text>
-        <Pressable testID="lab-open-perf" accessibilityRole="button" accessibilityLabel="Medir rendimiento" onPress={()=>setShowPerformance(true)} style={{padding:8}}><Text style={styles.text}>A/B</Text></Pressable></View>
+        <Pressable testID="lab-open-perf" accessibilityRole="button" accessibilityLabel="Medir rendimiento" onPress={()=>setShowPerformance(true)} style={{padding:8,marginRight:64}}><Text style={styles.text}>A/B</Text></Pressable></View>
       <Text style={styles.note}>Presiona y arrastra. El vidrio cede localmente; la silueta no se escala. El estado de reposo usa la misma ruta de render.</Text>
       <View style={styles.bench}>
         {legacy ? <GlassButton key="original-native" variant="primary" label="Registrar +" scale={scale} blurTarget={target}/> : <LiquidPressable key="volume-native" width={230*scale} height={61*scale} label="Registrar +" testID="lab-register"
