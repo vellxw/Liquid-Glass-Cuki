@@ -99,7 +99,7 @@ test('native content stays outside shader and never changes scale',()=>{
  assert.ok(s.indexOf('<VolumeSurface')<s.indexOf('<Circle'));assert.doesNotMatch(s,/MechanicalSupport|scaleX|scaleY|\{scale:/);
 });
 test('ablation zeros optics AND content travel',()=>{
- const s=fs.readFileSync(path.join(root,'src/liquid/VolumeSurface.tsx'),'utf8');assert.match(s,/pressure:enabled\?pressure.value:0/);
+ const s=fs.readFileSync(path.join(root,'src/liquid/VolumeSurface.tsx'),'utf8');assert.match(s,/pressure:enabled\?optical.value.p:0/);
  const a=fs.readFileSync(path.join(root,'src/home/LocalRegisterArtwork.tsx'),'utf8');assert.match(a,/enabled && contentFollow && supported/);
 });
 

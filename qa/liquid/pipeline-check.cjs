@@ -30,7 +30,7 @@ test('native letters only have bounded sub-dp rigid follow-through',()=>{
 });
 test('cache preparation is not coupled to every press or render frame',()=>{
  const s=read('src/liquid/VolumeSurface.tsx');assert.doesNotMatch(s,/makeImageFromView|nativeBacking|activeTexture|useFrameCallback|scheduleOnRN|setTimeout|setInterval/);
- assert.match(s,/pressure:enabled\?pressure.value:0/);
+ assert.match(s,/pressure:enabled\?optical.value.p:0/);
  const c=read('src/liquid/useNativeMaterialCache.ts');assert.match(c,/if\(started.current\)return/);assert.match(c,/canInstallCache/);
  assert.doesNotMatch(c,/withTiming|withSpring|useFrameCallback/);
 });

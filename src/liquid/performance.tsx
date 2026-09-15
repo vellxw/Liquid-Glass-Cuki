@@ -3,18 +3,20 @@ import { createContext, useContext } from 'react';
 /** Fixed per experiment/scene. Never changed automatically in the middle of a gesture.
  * Diagnostic variants are NOT quality tiers and are never selected by the product. */
 export type GlassPerformanceMode = 'optimized' | 'baseline' | 'roi-only' | 'cache-only' |
-  'no-blur' | 'no-lighting' | 'no-content' | 'identity';
+  'frame-coalesced' | 'shader-only' | 'no-blur' | 'no-lighting' | 'no-content' | 'identity';
 export type GlassPerformance = Readonly<{
-  localDraw: boolean; cacheArtwork: boolean; optimizedShader: boolean;
+  coalesce: boolean; localDraw: boolean; cacheArtwork: boolean; optimizedShader: boolean;
   nativeBlur: boolean; lighting: boolean; contentFollow: boolean; identity: boolean;
 }>;
 const base: GlassPerformance = {
-  localDraw:false, cacheArtwork:false, optimizedShader:false,
+  coalesce:false, localDraw:false, cacheArtwork:false, optimizedShader:false,
   nativeBlur:true, lighting:true, contentFollow:true, identity:false,
 };
-const optimized: GlassPerformance = {...base, localDraw:true, cacheArtwork:true, optimizedShader:true};
+const optimized: GlassPerformance = {...base, localDraw:true, cacheArtwork:false, optimizedShader:true};
 export const GLASS_PERFORMANCE: Readonly<Record<GlassPerformanceMode, GlassPerformance>> = {
   baseline:base, optimized,
+  'frame-coalesced':{...optimized, coalesce:true},
+  'shader-only':{...base, optimizedShader:true},
   'roi-only':{...base, localDraw:true, optimizedShader:true},
   'cache-only':{...base, cacheArtwork:true},
   'no-blur':{...optimized, nativeBlur:false},
@@ -22,7 +24,7 @@ export const GLASS_PERFORMANCE: Readonly<Record<GlassPerformanceMode, GlassPerfo
   'no-content':{...optimized, contentFollow:false},
   identity:{...optimized, identity:true},
 };
-/** Default is the measured full-quality path, with no physics/quality changes. */
+/** Default is the full-quality ROI path selected in the first native A/B, with no physics/quality changes. */
 export const GlassPerformanceContext = createContext<GlassPerformance>(optimized);
 export const useGlassPerformance = () => useContext(GlassPerformanceContext);
 

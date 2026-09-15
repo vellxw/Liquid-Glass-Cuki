@@ -80,7 +80,7 @@ samples=[];status('before')
 # ABBA-like interleaving, five repetitions per full-quality candidate in final runs.
 repetitions=int(os.environ.get('CUKI_BENCH_REPEATS','5'))
 for i in range(repetitions):
-    order=['baseline','optimized','roi-only','cache-only']
+    order=['baseline','optimized','frame-coalesced','shader-only']
     if i%2:order.reverse()
     for mode in order:
         samples.append(trial(mode,len(samples)))
@@ -92,13 +92,13 @@ for mode in ['no-blur','no-lighting','no-content','identity']:
 
 # Identical native pixels at stable states: same instance, no whole-screen score.
 images={}
-for mode in ['baseline','optimized','roi-only','cache-only']:
+for mode in ['baseline','optimized','frame-coalesced','shader-only']:
     select(mode);time.sleep(.3);images[mode+'-rest']=snap(mode+'-rest')
     images[mode+'-hold']=inject(mode+'-hold',events(1700,stationary=True),mode+'-hold')
     time.sleep(.3)
 def mae(x,y):return sum(ImageStat.Stat(ImageChops.difference(x.crop(box),y.crop(box))).mean)/3
 visual={mode:{state:mae(images['baseline-'+state],images[mode+'-'+state])for state in ['rest','hold']}
-        for mode in ['optimized','roi-only','cache-only']}
+        for mode in ['optimized','frame-coalesced','shader-only']}
 (O/'visual.json').write_text(json.dumps(visual,indent=2))
 
 # Keep input normal and optics full-quality while checking long-running behavior.
@@ -134,8 +134,9 @@ data_sources { config { name: "android.surfaceflinger.frametimeline" } }
 '''
 try:
     f=O/'trace-config.pbtxt';f.write_text(config);adb('push',str(f),'/data/local/tmp/cuki-perf.pbtxt')
-    trace=sp.Popen(['adb','shell','perfetto','--txt','-c','/data/local/tmp/cuki-perf.pbtxt','-o','/data/misc/perfetto-traces/cuki.perfetto-trace'])
-    time.sleep(.8);inject('profiled-drag',events(6000));trace.wait(timeout=15)
+    trace=sp.Popen(['adb','shell','perfetto','--txt','-c','-','-o','/data/misc/perfetto-traces/cuki.perfetto-trace'],stdin=sp.PIPE)
+    trace.stdin.write(config.encode());trace.stdin.close()
+    time.sleep(.8);inject('profiled-drag',events(6000));trace.wait(timeout=15);assert trace.returncode==0,'Perfetto did not start'
     adb('pull','/data/misc/perfetto-traces/cuki.perfetto-trace',str(O/'cuki.perfetto-trace'))
 except Exception as e:(O/'trace-error.txt').write_text(str(e))
 status('after')

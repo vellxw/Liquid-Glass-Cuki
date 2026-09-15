@@ -5,6 +5,7 @@ import { useDerivedValue } from 'react-native-reanimated';
 import { VOLUME_SKSL, EMPTY_SUBSTRATE_SKSL } from './volumeShader';
 import { OPTIMIZED_VOLUME_SKSL, IDENTITY_VOLUME_SKSL } from './optimizedShader';
 import { contactRect, useGlassPerformance } from './performance';
+import { useOpticalFrame } from './useOpticalFrame';
 import { VOLUME } from './volumeField';
 import { useNativeMaterialCache } from './useNativeMaterialCache';
 import type { LiquidPhysics } from './types';
@@ -29,17 +30,18 @@ export function VolumeSurface({physics,children,enabled=true,lighting=true,debug
   const selectedEffect=performance.identity?identityEffect:performance.optimizedShader?(fastEffect??effect):effect;
   const density=PixelRatio.get();
   const {width,height,pressure,contactX,contactY,releaseX,releaseY,reduceMotion}=physics;
+  const optical=useOpticalFrame(physics,performance.coalesce);
   const {source,host,cache,prepare}=useNativeMaterialCache(physics,backdropTarget);
   const image=cache?.material,underlay=substrate??cache?.backdrop;
   const available=!!(image&&selectedEffect&&empty);
   useEffect(()=>{onReady?.(available);},[onReady,available]);
   const region=useDerivedValue(()=>performance.localDraw
-    ? contactRect(contactX.value+releaseX.value,contactY.value+releaseY.value,width,height,VOLUME.radius,enabled?pressure.value:0,density)
+    ? contactRect(optical.value.x,optical.value.y,width,height,VOLUME.radius,enabled?optical.value.p:0,density)
     : {x:0,y:0,width,height},[performance.localDraw,width,height,enabled,density]);
   const uniforms=useDerivedValue(()=>({
     protectedCircle:protectedCircle?[...protectedCircle]:[0,0,0],
-    size:[width,height],touch:[contactX.value+releaseX.value,contactY.value+releaseY.value],
-    pressure:enabled?pressure.value:0,depth:(reduceMotion.value?VOLUME.reducedDepth:VOLUME.depth)*Math.max(0,Math.min(2,physics.intensity)),
+    size:[width,height],touch:[optical.value.x,optical.value.y],
+    pressure:enabled?optical.value.p:0,depth:(optical.value.reduced?VOLUME.reducedDepth:VOLUME.depth)*Math.max(0,Math.min(2,physics.intensity)),
     radius:VOLUME.radius,lighting:lighting&&performance.lighting?1:0,proof:substrate?1:underlay?2:0,debug:debug?1:0,
   }),[width,height,enabled,lighting,debug,substrate,underlay,physics.intensity,protectedCircle,performance.lighting]);
   return <View ref={host} collapsable={false} pointerEvents="none" style={{width,height}}>
