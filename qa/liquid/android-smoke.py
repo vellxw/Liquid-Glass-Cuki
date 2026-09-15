@@ -2,7 +2,6 @@
 Records genuine native frames and asserts press/release and callback behavior.
 No account login, credentials, uploads or changes to product data are involved.
 """
-import base64
 import io
 import json
 import re
@@ -105,30 +104,77 @@ root=counter(0)
 ready=find(root,'lab-register')
 x,y=center(ready)
 x1,y1,x2,y2=bounds(ready)
+target_box=(x1,y1,x2,y2)
 box=(max(0,x1-12),max(0,y1-12),x2+12,y2+18)
-record=sp.Popen(['adb','shell','screenrecord','--time-limit','8','/sdcard/liquid-phase-a.mp4'])
+
+# Capture both an EARLY transient and a stable hold. A cold software GPU can stall
+# the first animation; a fixed early screenshot must not be labelled FULL PRESS.
+# Keep cold-start frames/logs, rather than warm them away or assert FPS from them.
+def hold_capture(prefix, early=False):
+    hold=sp.Popen(['adb','shell','input','touchscreen','swipe',str(x),str(y),str(x),str(y),'3000'])
+    time.sleep(.65)
+    if early:
+        capture('early-contact')
+    time.sleep(1.35)
+    image=capture(prefix)
+    hold.wait(timeout=8)
+    time.sleep(.7)
+    return image
+
+def mae(a,b):
+    return sum(ImageStat.Stat(ImageChops.difference(a.crop(box),b.crop(box))).mean)/3
+
+def foreground_box(image):
+    # Existing label/plus are white; the black-glass rim is excluded. This fixed
+    # region/threshold checks uniform compression, NOT material similarity.
+    w,h=x2-x1,y2-y1
+    roi=(int(w*.16),int(h*.18),int(w*.94),int(h*.84))
+    r,g,b=image.crop(target_box).crop(roi).split()
+    white=ImageChops.darker(ImageChops.darker(r,g),b).point(lambda v:255 if v>=232 else 0)
+    b=white.getbbox()
+    assert b is not None and b[2]-b[0]>100, 'Foreground control region is not visible'
+    return b
+
+def scale_ratio(rest,pressed):
+    a,b=foreground_box(rest),foreground_box(pressed)
+    return (b[2]-b[0])/(a[2]-a[0])
+
+record=sp.Popen(['adb','shell','screenrecord','--time-limit','10','/sdcard/liquid-phase-a.mp4'])
 time.sleep(.5)
 rest=capture('rest')
-hold=sp.Popen(['adb','shell','input','touchscreen','swipe',str(x),str(y),str(x),str(y),'1500'])
-time.sleep(.65)
-pressed=capture('pressed')
-hold.wait(timeout=8)
-time.sleep(.7)
+pressed=hold_capture('pressed',early=True)
 settled=capture('settled')
 counter(1)
-record.wait(timeout=12)
+record.wait(timeout=14)
 adb('pull','/sdcard/liquid-phase-a.mp4',str(OUT/'native-press.mp4'))
 
-r,p,s=(im.crop(box) for im in [rest,pressed,settled])
-press_mae=sum(ImageStat.Stat(ImageChops.difference(r,p)).mean)/3
-settle_mae=sum(ImageStat.Stat(ImageChops.difference(r,s)).mean)/3
-assert press_mae > .05, f'Native pressed state indistinguishable: {press_mae}'
+press_mae=mae(rest,pressed)
+settle_mae=mae(rest,settled)
+normal_ratio=scale_ratio(rest,pressed)
+assert .976<=normal_ratio<=.984, f'Full press must reach 0.98 scale, not just change brightness: {normal_ratio}'
 assert settle_mae < 1, f'Native rest did not recover: MAE {settle_mae}'
+
+# Repeat after first-use initialization; retain separate UI interval reports in logs.
+warm_pressed=hold_capture('warm-pressed')
+counter(2)
+warm_ratio=scale_ratio(rest,warm_pressed)
+assert .976<=warm_ratio<=.984, f'Warm hold geometry: {warm_ratio}'
+
+# Prove physical readability without the optional optical overlay.
+optics=find(hierarchy(),'Óptica local del laboratorio')
+assert optics is not None, 'Optics switch missing'
+tap(optics)
+assert find(hierarchy(),'Óptica local del laboratorio').get('checked')=='false'
+no_optics=hold_capture('pressed-no-optics')
+counter(3)
+no_optics_ratio=scale_ratio(rest,no_optics)
+assert .976<=no_optics_ratio<=.984, f'Physical press disappeared without optics: {no_optics_ratio}'
+tap(find(hierarchy(),'Óptica local del laboratorio'))
 
 # Horizontal escape: no scroll needed to find the counter again.
 adb('shell','input','swipe',str(x),str(y),str(rest.width-1),str(y),'500')
 time.sleep(.6)
-counter(1)
+counter(3)
 
 node=find(hierarchy(),'Deshabilitar Registrar')
 assert node is not None,'Disabled switch missing'
@@ -136,7 +182,7 @@ tap(node)
 assert find(hierarchy(),'Deshabilitar Registrar').get('checked') == 'true', 'Disabled switch did not change'
 adb('shell','input','tap',str(x),str(y))
 time.sleep(.5)
-counter(1)
+counter(3)
 tap(find(hierarchy(),'Deshabilitar Registrar'))
 
 node=find(hierarchy(),'Forzar movimiento reducido')
@@ -144,26 +190,24 @@ assert node is not None,'Reduced-motion switch missing'
 tap(node)
 assert find(hierarchy(),'Forzar movimiento reducido').get('checked') == 'true', 'Reduced switch did not change'
 reduced_rest=capture('reduced-rest')
-hold=sp.Popen(['adb','shell','input','touchscreen','swipe',str(x),str(y),str(x),str(y),'1500'])
-time.sleep(.65)
-reduced_pressed=capture('reduced-pressed')
-hold.wait(timeout=8)
-time.sleep(.7)
-root=counter(2)
-reduced_mae=sum(ImageStat.Stat(ImageChops.difference(reduced_rest.crop(box),reduced_pressed.crop(box))).mean)/3
-assert reduced_mae < press_mae, 'Reduced motion must visibly limit the normal response'
+reduced_pressed=hold_capture('reduced-pressed')
+root=counter(4)
+reduced_ratio=scale_ratio(reduced_rest,reduced_pressed)
+assert .994<=reduced_ratio<=1.002 and reduced_ratio>normal_ratio+.01, f'Reduced geometry is not limited: {reduced_ratio}'
+reduced_mae=mae(reduced_rest,reduced_pressed)
 (OUT/'result.json').write_text(json.dumps({'native':'Android API 35 / Expo Go / software GPU / debug JS',
   'pressROI_MAE':press_mae,'settledROI_MAE':settle_mae,'reducedPressROI_MAE':reduced_mae,
-  'normalHoldCommit':True,'escapeCancelled':True,'disabledIgnored':True,'reducedCommit':True,
+  'foregroundScaleRatio':normal_ratio,'warmForegroundScaleRatio':warm_ratio,
+  'noOpticsForegroundScaleRatio':no_optics_ratio,'reducedForegroundScaleRatio':reduced_ratio,
+  'normalHoldCommit':True,'warmHoldCommit':True,'noOpticsHoldCommit':True,
+  'escapeCancelled':True,'disabledIgnored':True,'reducedCommit':True,
   'physicalHaptics':'not testable in emulator','release60fps':'not measured',
+  'inputLatency':'not measured; early-contact and cold-start logs retained',
   'bounds':box},indent=2))
 print('NATIVE_RESULT', (OUT/'result.json').read_text(),flush=True)
-# Small native crops in the log also permit a visual check when artifact download is unavailable.
 montage=Image.new('RGB',(480,3*164),'#111719')
 d=ImageDraw.Draw(montage)
-for i,(name,im) in enumerate([('Native REST',r),('Native HOLD',p),('Native SETTLED',s)]):
+for i,(name,im) in enumerate([('Native REST',rest.crop(box)),('Native HOLD',pressed.crop(box)),('Native SETTLED',settled.crop(box))]):
     im.thumbnail((460,132));montage.paste(im,(10,i*164+23));d.text((10,i*164+5),name,fill='white')
 montage.save(OUT/'native-montage.png')
-buffer=io.BytesIO();montage.save(buffer,format='WEBP',quality=78)
-print('NATIVE_PREVIEW_BASE64_BEGIN\n'+base64.b64encode(buffer.getvalue()).decode()+'\nNATIVE_PREVIEW_BASE64_END',flush=True)
 print('NATIVE_SMOKE_PASS',flush=True)
