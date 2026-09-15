@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
-import { View } from 'react-native';
+import { View, findNodeHandle, UIManager } from 'react-native';
 import { Skia, makeImageFromView, FilterMode, MipmapMode, type SkImage } from '@shopify/react-native-skia';
 import { useAnimatedReaction, useSharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -13,10 +13,17 @@ export function canInstallCache(active:boolean,pressure:number):boolean {
 function measure(ref:RefObject<View|null>):Promise<Box|null>{
   return new Promise(resolve=>{
     const timer=setTimeout(()=>resolve(null),350);
-    if(!ref.current){clearTimeout(timer);resolve(null);return;}
-    ref.current.measureInWindow((x,y,width,height)=>{
+    const done=(x:number,y:number,width:number,height:number)=>{
       clearTimeout(timer);resolve(width>0&&height>0?{x,y,width,height}:null);
-    });
+    };
+    if(!ref.current){clearTimeout(timer);resolve(null);return;}
+    // Expo native-view wrappers do not necessarily expose View's instance methods.
+    if(typeof ref.current.measureInWindow==='function')ref.current.measureInWindow(done);
+    else {
+      const tag=findNodeHandle(ref.current);
+      if(tag==null){clearTimeout(timer);resolve(null);return;}
+      UIManager.measureInWindow(tag,done);
+    }
   });
 }
 /** Optional captured underlay: its own native scene, never the button/foreground.
