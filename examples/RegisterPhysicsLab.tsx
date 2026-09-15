@@ -6,6 +6,7 @@ import Animated, { useAnimatedProps, useFrameCallback, useSharedValue } from 're
 import { scheduleOnRN } from 'react-native-worklets';
 import { GlassButton } from '../src/home/GlassButton';
 import { LiquidPressable } from '../src/liquid/LiquidPressable';
+import { GlassPerformanceBench } from './GlassPerformanceBench';
 import { CukiHomeDemo } from '../src/demo/CukiHomeDemo';
 import { LOCAL_GLASS } from '../src/liquid/physics';
 import type { LiquidEvent, LiquidPhysics } from '../src/liquid/types';
@@ -44,6 +45,7 @@ export function RegisterPhysicsLab(){
   const target=useRef<View|null>(null);
   const [commits,setCommits]=useState(0),[ready,setReady]=useState(false);
   const [mechanical,setMechanical]=useState(true);
+  const [showPerformance,setShowPerformance]=useState(false);
   const [showHome,setShowHome]=useState(false);
   const [legacy,setLegacy]=useState(false),[lighting,setLighting]=useState(true);
   const [enabled,setEnabled]=useState(true),[grid,setGrid]=useState(false),[debug,setDebug]=useState(false);
@@ -53,11 +55,13 @@ export function RegisterPhysicsLab(){
   const onPhase=useCallback((e:LiquidEvent)=>{setEvent(e.phase);console.log('[local-phase]',JSON.stringify(e));},[]);
   const onReport=useCallback((r:Report)=>{setReport(r);console.log('[local-trace]',JSON.stringify(r));},[]);
   const onReady=useCallback((value:boolean)=>setReady(value),[]);
+  if(showPerformance)return <GlassPerformanceBench onBack={()=>setShowPerformance(false)}/>;
   if(showHome)return <CukiHomeDemo/>;
   return <View style={styles.screen}>
     <BlurTargetView ref={target} style={StyleSheet.absoluteFill}/>
     <ScrollView contentContainerStyle={{paddingTop:insets.top+24,paddingHorizontal:16,paddingBottom:insets.bottom+80}}>
-      <Text style={styles.title}>Registrar · vidrio local</Text>
+      <View style={styles.row}><Text style={styles.title}>Registrar · vidrio local</Text>
+        <Pressable testID="lab-open-perf" accessibilityRole="button" accessibilityLabel="Medir rendimiento" onPress={()=>setShowPerformance(true)} style={{padding:8}}><Text style={styles.text}>A/B</Text></Pressable></View>
       <Text style={styles.note}>Presiona y arrastra. El vidrio cede localmente; la silueta no se escala. El estado de reposo usa la misma ruta de render.</Text>
       <View style={styles.bench}>
         {legacy ? <GlassButton key="original-native" variant="primary" label="Registrar +" scale={scale} blurTarget={target}/> : <LiquidPressable key="volume-native" width={230*scale} height={61*scale} label="Registrar +" testID="lab-register"

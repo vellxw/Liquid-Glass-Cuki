@@ -1,13 +1,17 @@
 import { useEffect, type ReactNode, type RefObject } from 'react';
 import { PixelRatio, StyleSheet, View } from 'react-native';
-import { Canvas, Fill, Shader, ImageShader, Skia, FilterMode, MipmapMode, type SkImage } from '@shopify/react-native-skia';
+import { Canvas, Fill, Rect, Shader, ImageShader, Skia, FilterMode, MipmapMode, type SkImage } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
 import { VOLUME_SKSL, EMPTY_SUBSTRATE_SKSL } from './volumeShader';
+import { OPTIMIZED_VOLUME_SKSL, IDENTITY_VOLUME_SKSL } from './optimizedShader';
+import { contactRect, useGlassPerformance } from './performance';
 import { VOLUME } from './volumeField';
 import { useNativeMaterialCache } from './useNativeMaterialCache';
 import type { LiquidPhysics } from './types';
 
 const effect=(()=>{try{return Skia.RuntimeEffect.Make(VOLUME_SKSL);}catch{return null;}})();
+const fastEffect=(()=>{try{return Skia.RuntimeEffect.Make(OPTIMIZED_VOLUME_SKSL);}catch{return null;}})();
+const identityEffect=(()=>{try{return Skia.RuntimeEffect.Make(IDENTITY_VOLUME_SKSL);}catch{return null;}})();
 const empty=Skia.RuntimeEffect.Make(EMPTY_SUBSTRATE_SKSL);
 export type VolumeSurfaceProps={
   physics:LiquidPhysics; children:ReactNode; enabled?:boolean; lighting?:boolean; debug?:boolean;
@@ -21,30 +25,38 @@ export type VolumeSurfaceProps={
  * No pressure-dependent View opacity, per-press capture or React drag updates.
  */
 export function VolumeSurface({physics,children,enabled=true,lighting=true,debug=false,substrate,backdropTarget,onReady,protectedCircle}:VolumeSurfaceProps){
+  const performance=useGlassPerformance();
+  const selectedEffect=performance.identity?identityEffect:performance.optimizedShader?(fastEffect??effect):effect;
+  const density=PixelRatio.get();
   const {width,height,pressure,contactX,contactY,releaseX,releaseY,reduceMotion}=physics;
   const {source,host,cache,prepare}=useNativeMaterialCache(physics,backdropTarget);
   const image=cache?.material,underlay=substrate??cache?.backdrop;
-  const available=!!(image&&effect&&empty);
+  const available=!!(image&&selectedEffect&&empty);
   useEffect(()=>{onReady?.(available);},[onReady,available]);
+  const region=useDerivedValue(()=>performance.localDraw
+    ? contactRect(contactX.value+releaseX.value,contactY.value+releaseY.value,width,height,VOLUME.radius,enabled?pressure.value:0,density)
+    : {x:0,y:0,width,height},[performance.localDraw,width,height,enabled,density]);
   const uniforms=useDerivedValue(()=>({
     protectedCircle:protectedCircle?[...protectedCircle]:[0,0,0],
     size:[width,height],touch:[contactX.value+releaseX.value,contactY.value+releaseY.value],
     pressure:enabled?pressure.value:0,depth:(reduceMotion.value?VOLUME.reducedDepth:VOLUME.depth)*Math.max(0,Math.min(2,physics.intensity)),
-    radius:VOLUME.radius,lighting:lighting?1:0,proof:substrate?1:underlay?2:0,debug:debug?1:0,
-  }),[width,height,enabled,lighting,debug,substrate,underlay,physics.intensity,protectedCircle]);
+    radius:VOLUME.radius,lighting:lighting&&performance.lighting?1:0,proof:substrate?1:underlay?2:0,debug:debug?1:0,
+  }),[width,height,enabled,lighting,debug,substrate,underlay,physics.intensity,protectedCircle,performance.lighting]);
   return <View ref={host} collapsable={false} pointerEvents="none" style={{width,height}}>
     {substrate && <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
       <Fill><ImageShader image={substrate} fit="fill" rect={{x:0,y:0,width,height}} tx="clamp" ty="clamp"
         sampling={{filter:FilterMode.Linear,mipmap:MipmapMode.None}}/></Fill>
     </Canvas>}
-    <View ref={source} collapsable={false} onLayout={prepare} style={StyleSheet.absoluteFill}>{children}</View>
+    <View ref={source} collapsable={false} onLayout={prepare}
+      renderToHardwareTextureAndroid={performance.cacheArtwork} shouldRasterizeIOS={performance.cacheArtwork}
+      style={StyleSheet.absoluteFill}>{children}</View>
     {available && <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Fill><Shader source={effect!} uniforms={uniforms}>
+      <Rect rect={region}><Shader source={selectedEffect!} uniforms={uniforms}>
         <ImageShader image={image!} fit="fill" rect={{x:0,y:0,width,height}} tx="clamp" ty="clamp"
           sampling={{filter:FilterMode.Linear,mipmap:MipmapMode.None}}/>
         {underlay ? <ImageShader image={underlay} fit="fill" rect={{x:0,y:0,width,height}} tx="clamp" ty="clamp"
           sampling={{filter:FilterMode.Linear,mipmap:MipmapMode.None}}/> : <Shader source={empty!}/>}
-      </Shader></Fill>
+      </Shader></Rect>
     </Canvas>}
   </View>;
 }

@@ -16,6 +16,8 @@ function createLoader(options = {}) {
   const react = {
     __esModule: true,
     memo: fn => fn,
+    createContext: initial => ({ _default:initial, Provider:'ContextProvider' }),
+    useContext: context => context._default,
     useId: () => `offline${++nextId}`,
     useCallback: fn => fn,
     useLayoutEffect: fn => effects.push(fn),
