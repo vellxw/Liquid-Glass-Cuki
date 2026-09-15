@@ -1,0 +1,73 @@
+name: Registrar local acceptance audit
+on:
+  push:
+    branches: [qa/registrar-local-acceptance]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 35025476822
+          name: local-glass-native-android
+          path: reviewed-native
+      - run: python -m pip install pillow
+      - name: Audit actual pixels and presentation measurements
+        run: |
+          python - <<'PY'
+          import json,re,subprocess
+          from pathlib import Path
+          from PIL import Image,ImageChops,ImageStat
+          p=Path('reviewed-native');r=json.loads((p/'result.json').read_text());box=tuple(r['button'])
+          def image(n):return Image.open(p/(n+'.png')).convert('RGB').crop(box)
+          rest=image('rest')
+          def mae(a,b):return sum(ImageStat.Stat(ImageChops.difference(a,b)).mean)/3
+          def centroid(n):
+            d=ImageChops.difference(rest,image(n));w,h=d.size;total=0;sx=0;sy=0
+            for j,(a,b,c) in enumerate(d.getdata()):
+              v=a+b+c;total+=v;sx+=(j%w)*v;sy+=(j//w)*v
+            if not total:raise RuntimeError('No local optical change: '+n)
+            return {'xNormalized':sx/total/w,'yNormalized':sy/total/h}
+          tracking={n:centroid(n) for n in ['drag-left','hold-1','drag-right']}
+          if not(tracking['drag-left']['xNormalized']<.30 and .40<tracking['hold-1']['xNormalized']<.60 and tracking['drag-right']['xNormalized']>.65):
+            raise RuntimeError('The observed deformation does not move across the button')
+          # Never conflate a changed picture with a successful local drag or a recovered
+          # new baseline with equivalence to the original native material.
+          original=mae(image('original-svg-rest'),rest)
+          recovered=mae(rest,image('settled'))
+          if recovered!=0 or mae(image('hold-1'),image('hold-2'))!=0 or mae(image('off-rest'),image('off-hold'))!=0:
+            raise RuntimeError('Stable hold, exact recovery or full ablation regressed')
+          fps={}
+          for filename in ['surfaceflinger-drag.txt','surfaceflinger-unrecorded.txt']:
+            text=(p/filename).read_text();samples=[]
+            for section in text.split('layerName = ')[1:]:
+              if 'ExperienceActivity' not in section.splitlines()[0]:continue
+              f=re.search(r'averageFPS = ([0-9.]+)',section);n=re.search(r'totalFrames = (\d+)',section)
+              if f and n:samples.append({'layer':section.splitlines()[0],'averagePresentedFPS':float(f[1]),'frames':int(n[1])})
+            if not samples:raise RuntimeError('Presentation FPS missing: '+filename)
+            fps[filename]=samples
+          result={'runtimeCommit':'049baca058b4602f7f2e3f2dc83fa1d8275f0206','nativeTestCheckout':'65e4f05bff4879da8bd7c73fcad3e4df491c9411','nativeWorkflowRun':35025476822,'nativeArtifactId':10419811634,'auditCommit':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'newNativeExecution':False,'method':'Independent remeasurement of PNGs and reported SurfaceFlinger layer stats from the existing native run; no synthetic rendered interaction','centroids':tracking,'originalNativeRestMAE':original,'originalNativeRestPixelIdentical':original==0,'recoveredRestMAE':recovered,'presentation':fps,'phaseAComplete':False,'remaining':['Original native resting pixels are not exactly identical to cached Skia baseline','Native background is captured at layout, not refracted as a live React Native backdrop','Physical haptics and touch-to-photon latency unverified','iOS native interaction unverified','Final perceptual acceptance required']}
+          (p/'independent-audit.json').write_text(json.dumps(result,indent=2));print(json.dumps(result,indent=2))
+          PY
+      - name: Export source without touching product refs
+        run: |
+          mkdir -p delivery
+          git archive --format=zip --prefix=CUKI-Registrar-Lab/ -o delivery/CUKI-Registrar-Lab-source.zip HEAD
+          cp reviewed-native/native-all-actions.mp4 delivery/Registrar-native-tap-hold-drag-release.mp4
+          cp reviewed-native/native-home-actions.mp4 delivery/Registrar-native-Home.mp4
+          cp reviewed-native/independent-audit.json delivery/independent-audit.json
+          sha256sum delivery/* > delivery/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Registrar-reviewed-delivery
+          path: delivery/
+          if-no-files-found: error
+          retention-days: 14
