@@ -15,7 +15,7 @@ type Props={physics:LiquidPhysics;scale:number;label:string;fontFamily?:string;
   blurTarget?:RefObject<View|null>;enabled?:boolean;debug?:boolean;proofGrid?:boolean;
   contentFollow?:boolean;lighting?:boolean;onReady?:(ready:boolean)=>void};
 /** The optical surface is always Skia. No capsule scale/down, no per-press snapshots.
- * Crisp content has at most .9dp local follow-through. Approved artwork is unchanged. */
+ * The plus insert stays fixed in its original SVG compositing pass. Crisp text may follow .9dp. */
 export const LocalRegisterArtwork=memo(function LocalRegisterArtwork({physics,scale,label,fontFamily,blurTarget,enabled=true,
   debug=false,proofGrid=false,contentFollow=true,lighting=true,onReady}:Props){
   const id=`volume${useId().replace(/[^a-zA-Z0-9]/g,'')}`,s=PX*scale,w=460*s,h=122*s;
@@ -23,8 +23,6 @@ export const LocalRegisterArtwork=memo(function LocalRegisterArtwork({physics,sc
   const [supported,setSupported]=useState(true);
   const ready=useCallback((value:boolean)=>{setSupported(value);onReady?.(value);},[onReady]);
   const substrate=useMemo(()=>proofGrid?makeProofSubstrate(w,h):null,[proofGrid,w,h]);
-  const circleStyle=useAnimatedStyle(()=>({transform:[{translateY:enabled && contentFollow && supported?
-    contentDepth(118*s,61*s,physics.contactX.value,physics.contactY.value,physics.pressure.value,physics.reduceMotion.value):0}]}),[enabled,contentFollow,supported,s]);
   const labelStyle=useAnimatedStyle(()=>({transform:[{translateY:enabled && contentFollow && supported?
     contentDepth(300*s,61*s,physics.contactX.value,physics.contactY.value,physics.pressure.value,physics.reduceMotion.value):0}]}),[enabled,contentFollow,supported,s]);
   return <View pointerEvents="none" style={{width:w,height:h}}>
@@ -34,21 +32,19 @@ export const LocalRegisterArtwork=memo(function LocalRegisterArtwork({physics,sc
         style={[StyleSheet.absoluteFill,{opacity:GLASS.blurOpacity}]}/>
     </View>}
     <VolumeSurface key={`${w}:${h}`} physics={physics} enabled={enabled} debug={debug} lighting={lighting}
-      substrate={substrate} backdropTarget={blurTarget} onReady={ready}>
+      substrate={substrate} backdropTarget={blurTarget} onReady={ready} protectedCircle={[118*s,61*s,32.5*s]}>
       <View style={[StyleSheet.absoluteFill,{borderRadius:h/2,overflow:'hidden'}]}>
-        <Svg width={w} height={h} viewBox="0 0 460 122"><RegisterButtonMaterial id={`${id}-material`}/></Svg>
+        <Svg width={w} height={h} viewBox="0 0 460 122">
+          <Defs><LinearGradient id={`${id}-circle`} x1="0" y1="0" x2="1" y2="1">
+            <Stop stopColor="#34464F"/><Stop offset="0.55" stopColor="#0C171D"/><Stop offset="1" stopColor="#4D5F67"/>
+          </LinearGradient></Defs>
+          <RegisterButtonMaterial id={`${id}-material`}/>
+          <Circle cx="118" cy="61" r="32.5" fill="#081015" opacity="0.6"/>
+          <Circle cx="118" cy="61" r="30.5" fill={`url(#${id}-circle)`} stroke="#DCE8ED" strokeWidth="2"/>
+          <G transform="translate(101 44)"><HomeIcon name="plus" width={34}/></G>
+        </Svg>
       </View>
     </VolumeSurface>
-    <Animated.View style={[StyleSheet.absoluteFill,circleStyle]}>
-      <Svg width={w} height={h} viewBox="0 0 460 122">
-        <Defs><LinearGradient id={`${id}-circle`} x1="0" y1="0" x2="1" y2="1">
-          <Stop stopColor="#34464F"/><Stop offset="0.55" stopColor="#0C171D"/><Stop offset="1" stopColor="#4D5F67"/>
-        </LinearGradient></Defs>
-        <Circle cx="118" cy="61" r="32.5" fill="#081015" opacity="0.6"/>
-        <Circle cx="118" cy="61" r="30.5" fill={`url(#${id}-circle)`} stroke="#DCE8ED" strokeWidth="2"/>
-        <G transform="translate(101 44)"><HomeIcon name="plus" width={34}/></G>
-      </Svg>
-    </Animated.View>
     <Animated.View style={[StyleSheet.absoluteFill,labelStyle]}>
       <HomeText x={193} baseline={HOME_REFERENCE.bodyTop+75} width={254} size={34}
         scale={scale} fontFamily={fontFamily}>{label}</HomeText>

@@ -11,26 +11,33 @@ const effect=(()=>{try{return Skia.RuntimeEffect.Make(VOLUME_SKSL);}catch{return
 const empty=Skia.RuntimeEffect.Make(EMPTY_SUBSTRATE_SKSL);
 export type VolumeSurfaceProps={
   physics:LiquidPhysics; children:ReactNode; enabled?:boolean; lighting?:boolean; debug?:boolean;
+  /** Rigid native insert excluded from both deformation and texture sampling. */
+  protectedCircle?:readonly [number,number,number];
   /** Controlled live scene if supplied. Otherwise an optional native backdrop is copied at layout. */
   substrate?:SkImage|null; backdropTarget?:RefObject<View|null>; onReady?:(ready:boolean)=>void;
 };
-/** The SAME cache is rendered in REST, CONTACT and RELEASE. It is prepared from
- * this instance's native vector artwork, not a PNG asset or reference screenshot.
- * No pressure-dependent backing opacity, native/Skia swap or per-press snapshot.
+/** Native material is never replaced, even after cache preparation. The optical
+ * Canvas has one persistent path and contributes only a local signed difference.
+ * No pressure-dependent View opacity, per-press capture or React drag updates.
  */
-export function VolumeSurface({physics,children,enabled=true,lighting=true,debug=false,substrate,backdropTarget,onReady}:VolumeSurfaceProps){
+export function VolumeSurface({physics,children,enabled=true,lighting=true,debug=false,substrate,backdropTarget,onReady,protectedCircle}:VolumeSurfaceProps){
   const {width,height,pressure,contactX,contactY,releaseX,releaseY,reduceMotion}=physics;
   const {source,host,cache,prepare}=useNativeMaterialCache(physics,backdropTarget);
   const image=cache?.material,underlay=substrate??cache?.backdrop;
   const available=!!(image&&effect&&empty);
   useEffect(()=>{onReady?.(available);},[onReady,available]);
   const uniforms=useDerivedValue(()=>({
+    protectedCircle:protectedCircle?[...protectedCircle]:[0,0,0],
     size:[width,height],touch:[contactX.value+releaseX.value,contactY.value+releaseY.value],
     pressure:enabled?pressure.value:0,depth:(reduceMotion.value?VOLUME.reducedDepth:VOLUME.depth)*Math.max(0,Math.min(2,physics.intensity)),
     radius:VOLUME.radius,lighting:lighting?1:0,proof:substrate?1:underlay?2:0,debug:debug?1:0,
-  }),[width,height,enabled,lighting,debug,substrate,underlay,physics.intensity]);
+  }),[width,height,enabled,lighting,debug,substrate,underlay,physics.intensity,protectedCircle]);
   return <View ref={host} collapsable={false} pointerEvents="none" style={{width,height}}>
-    {!available && <View ref={source} collapsable={false} onLayout={prepare} style={StyleSheet.absoluteFill}>{children}</View>}
+    {substrate && <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <Fill><ImageShader image={substrate} fit="fill" rect={{x:0,y:0,width,height}} tx="clamp" ty="clamp"
+        sampling={{filter:FilterMode.Linear,mipmap:MipmapMode.None}}/></Fill>
+    </Canvas>}
+    <View ref={source} collapsable={false} onLayout={prepare} style={StyleSheet.absoluteFill}>{children}</View>
     {available && <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
       <Fill><Shader source={effect!} uniforms={uniforms}>
         <ImageShader image={image!} fit="fill" rect={{x:0,y:0,width,height}} tx="clamp" ty="clamp"
