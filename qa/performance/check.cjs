@@ -21,13 +21,15 @@ test('local support is never clipped at any size/density/contact tested',()=>{
   assert.ok(r.x+r.width>=Math.min(width,x+63)&&r.y+r.height>=Math.min(height,y+63));
  }
 });
-test('rest draws no optical fragments and negative spring values retain full support',()=>{
- assert.equal(contactRect(100,30,230,61,42,0,2).width,0);
+test('rest prepares at most one transparent pixel and negative spring values retain full support',()=>{
+ assert.equal(contactRect(100,30,230,61,42,0,2).width,.5);
+ assert.equal(contactRect(100,30,230,61,42,0,2).height,.5);
  assert.equal(contactRect(100,30,230,61,42,-.01,2).width,contactRect(100,30,230,61,42,1,2).width);
 });
 test('geometry uses the same non-quantized contact coordinates',()=>{
  const s=fs.readFileSync(path.join(root,'src/liquid/VolumeSurface.tsx'),'utf8');
- assert.match(s,/touch:\[optical.value.x,optical.value.y\]/);
+ assert.match(s,/touch:performance.coalesce\?\[optical.value.x,optical.value.y\]:\[contactX.value\+releaseX.value,contactY.value\+releaseY.value\]/);
+ assert.match(s,/performance.coalesce && <OpticalFrameCoordinator/);
  const f=fs.readFileSync(path.join(root,'src/liquid/useOpticalFrame.ts'),'utf8');assert.match(f,/x:contactX.value\+releaseX.value/);assert.match(f,/y:contactY.value\+releaseY.value/);
  assert.doesNotMatch(s,/withTiming|withSpring|useFrameCallback|setInterval|setTimeout/);
 });

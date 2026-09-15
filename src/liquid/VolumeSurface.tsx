@@ -1,11 +1,11 @@
 import { useEffect, type ReactNode, type RefObject } from 'react';
 import { PixelRatio, StyleSheet, View } from 'react-native';
 import { Canvas, Fill, Rect, Shader, ImageShader, Skia, FilterMode, MipmapMode, type SkImage } from '@shopify/react-native-skia';
-import { useDerivedValue } from 'react-native-reanimated';
+import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import { VOLUME_SKSL, EMPTY_SUBSTRATE_SKSL } from './volumeShader';
 import { OPTIMIZED_VOLUME_SKSL, IDENTITY_VOLUME_SKSL } from './optimizedShader';
 import { contactRect, useGlassPerformance } from './performance';
-import { useOpticalFrame } from './useOpticalFrame';
+import { OpticalFrameCoordinator, type OpticalFrame } from './useOpticalFrame';
 import { VOLUME } from './volumeField';
 import { useNativeMaterialCache } from './useNativeMaterialCache';
 import type { LiquidPhysics } from './types';
@@ -14,6 +14,7 @@ const effect=(()=>{try{return Skia.RuntimeEffect.Make(VOLUME_SKSL);}catch{return
 const fastEffect=(()=>{try{return Skia.RuntimeEffect.Make(OPTIMIZED_VOLUME_SKSL);}catch{return null;}})();
 const identityEffect=(()=>{try{return Skia.RuntimeEffect.Make(IDENTITY_VOLUME_SKSL);}catch{return null;}})();
 const empty=Skia.RuntimeEffect.Make(EMPTY_SUBSTRATE_SKSL);
+const NO_REGION={x:0,y:0,width:0,height:0};
 export type VolumeSurfaceProps={
   physics:LiquidPhysics; children:ReactNode; enabled?:boolean; lighting?:boolean; debug?:boolean;
   /** Rigid native insert excluded from both deformation and texture sampling. */
@@ -30,21 +31,30 @@ export function VolumeSurface({physics,children,enabled=true,lighting=true,debug
   const selectedEffect=performance.identity?identityEffect:performance.optimizedShader?(fastEffect??effect):effect;
   const density=PixelRatio.get();
   const {width,height,pressure,contactX,contactY,releaseX,releaseY,reduceMotion}=physics;
-  const optical=useOpticalFrame(physics,performance.coalesce);
+  const optical=useSharedValue<OpticalFrame>({x:width/2,y:height/2,p:0,reduced:false});
   const {source,host,cache,prepare}=useNativeMaterialCache(physics,backdropTarget);
   const image=cache?.material,underlay=substrate??cache?.backdrop;
   const available=!!(image&&selectedEffect&&empty);
   useEffect(()=>{onReady?.(available);},[onReady,available]);
   const region=useDerivedValue(()=>performance.localDraw
-    ? contactRect(optical.value.x,optical.value.y,width,height,VOLUME.radius,enabled?optical.value.p:0,density)
-    : {x:0,y:0,width,height},[performance.localDraw,width,height,enabled,density]);
+    ? contactRect(performance.coalesce?optical.value.x:contactX.value+releaseX.value,
+        performance.coalesce?optical.value.y:contactY.value+releaseY.value,width,height,VOLUME.radius,
+        enabled?(performance.coalesce?optical.value.p:pressure.value):0,density)
+    : NO_REGION,[performance.localDraw,performance.coalesce,width,height,enabled,density]);
   const uniforms=useDerivedValue(()=>({
     protectedCircle:protectedCircle?[...protectedCircle]:[0,0,0],
-    size:[width,height],touch:[optical.value.x,optical.value.y],
-    pressure:enabled?optical.value.p:0,depth:(optical.value.reduced?VOLUME.reducedDepth:VOLUME.depth)*Math.max(0,Math.min(2,physics.intensity)),
+    size:[width,height],touch:performance.coalesce?[optical.value.x,optical.value.y]:[contactX.value+releaseX.value,contactY.value+releaseY.value],
+    pressure:enabled?(performance.coalesce?optical.value.p:pressure.value):0,depth:((performance.coalesce?optical.value.reduced:reduceMotion.value)?VOLUME.reducedDepth:VOLUME.depth)*Math.max(0,Math.min(2,physics.intensity)),
     radius:VOLUME.radius,lighting:lighting&&performance.lighting?1:0,proof:substrate?1:underlay?2:0,debug:debug?1:0,
-  }),[width,height,enabled,lighting,debug,substrate,underlay,physics.intensity,protectedCircle,performance.lighting]);
+  }),[width,height,enabled,lighting,debug,substrate,underlay,physics.intensity,protectedCircle,performance.lighting,performance.coalesce]);
+  const paint=<Shader source={selectedEffect!} uniforms={uniforms}>
+        <ImageShader image={image!} fit="fill" rect={{x:0,y:0,width,height}} tx="clamp" ty="clamp"
+          sampling={{filter:FilterMode.Linear,mipmap:MipmapMode.None}}/>
+        {underlay ? <ImageShader image={underlay} fit="fill" rect={{x:0,y:0,width,height}} tx="clamp" ty="clamp"
+          sampling={{filter:FilterMode.Linear,mipmap:MipmapMode.None}}/> : <Shader source={empty!}/>}
+      </Shader>;
   return <View ref={host} collapsable={false} pointerEvents="none" style={{width,height}}>
+    {performance.coalesce && <OpticalFrameCoordinator physics={physics} frame={optical}/>}
     {substrate && <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
       <Fill><ImageShader image={substrate} fit="fill" rect={{x:0,y:0,width,height}} tx="clamp" ty="clamp"
         sampling={{filter:FilterMode.Linear,mipmap:MipmapMode.None}}/></Fill>
@@ -53,12 +63,7 @@ export function VolumeSurface({physics,children,enabled=true,lighting=true,debug
       renderToHardwareTextureAndroid={performance.cacheArtwork} shouldRasterizeIOS={performance.cacheArtwork}
       style={StyleSheet.absoluteFill}>{children}</View>
     {available && <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Rect rect={region}><Shader source={selectedEffect!} uniforms={uniforms}>
-        <ImageShader image={image!} fit="fill" rect={{x:0,y:0,width,height}} tx="clamp" ty="clamp"
-          sampling={{filter:FilterMode.Linear,mipmap:MipmapMode.None}}/>
-        {underlay ? <ImageShader image={underlay} fit="fill" rect={{x:0,y:0,width,height}} tx="clamp" ty="clamp"
-          sampling={{filter:FilterMode.Linear,mipmap:MipmapMode.None}}/> : <Shader source={empty!}/>}
-      </Shader></Rect>
+      {performance.localDraw?<Rect rect={region}>{paint}</Rect>:<Fill>{paint}</Fill>}
     </Canvas>}
   </View>;
 }

@@ -32,9 +32,13 @@ export const useGlassPerformance = () => useContext(GlassPerformanceContext);
  * Coordinates stay absolute within the original Canvas; no patch rescaling. */
 export function contactRect(cx:number,cy:number,width:number,height:number,radius:number,pressure:number,density:number){
   'worklet';
-  if(pressure===0 || !Number.isFinite(cx+cy+width+height) || width<=0 || height<=0)
+  if(!Number.isFinite(cx+cy+width+height) || width<=0 || height<=0)
     return {x:0,y:0,width:0,height:0};
-  const d=Math.max(1,density), support=radius*1.5+1/d;
+  const d=Math.max(1,density);
+  // One transparent physical pixel prepares the actual GPU pipeline in REST.
+  // No permanent frame loop; the approved shader returns exact alpha=0 here.
+  if(pressure===0)return {x:0,y:0,width:Math.min(width,1/d),height:Math.min(height,1/d)};
+  const support=radius*1.5+1/d;
   const x=Math.max(0,Math.floor((cx-support)*d)/d);
   const y=Math.max(0,Math.floor((cy-support)*d)/d);
   const r=Math.min(width,Math.ceil((cx+support)*d)/d);
