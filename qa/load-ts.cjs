@@ -18,6 +18,7 @@ function createLoader(options = {}) {
     memo: fn => fn,
     useId: () => `offline${++nextId}`,
     useCallback: fn => fn,
+    useLayoutEffect: fn => effects.push(fn),
     useEffect: fn => effects.push(fn),
     useMemo: fn => fn(),
     useRef: current => ({ current }),
@@ -30,7 +31,7 @@ function createLoader(options = {}) {
     },
   };
   const native = {
-    View: 'View', Text: 'Text', Pressable: 'Pressable', StatusBar: 'StatusBar', Button: 'Button', Switch: 'Switch',
+    View: 'View', Text: 'Text', TextInput:'TextInput', Pressable: 'Pressable', StatusBar: 'StatusBar', Button: 'Button', Switch: 'Switch',
     AppState: { currentState: 'active', addEventListener: (name, fn) => { listeners['app:'+name]=fn; return { remove() { delete listeners['app:'+name]; } }; } },
     AccessibilityInfo: { isReduceMotionEnabled: () => Promise.resolve(!!options.reduced),
       addEventListener: (name,fn) => { listeners[name]=fn; return { remove() { delete listeners[name]; } }; } },
@@ -59,6 +60,8 @@ function createLoader(options = {}) {
     createAnimatedComponent: c => c, ReduceMotion: { Never: 'never', System: 'system' },
     useSharedValue: value => { const sv = { value, modify: fn => { sv.value = fn(sv.value); } }; sharedValues.push(sv); return sv; },
     useReducedMotion: () => !!options.reduced,
+    Easing:{out:x=>x,cubic:x=>x*x*x},
+    useDerivedValue: fn => ({get value(){return fn();}}),
     useAnimatedProps: snapshot, useAnimatedStyle: snapshot,
     useAnimatedReaction: () => {}, useFrameCallback: () => ({ setActive() {} }),
     cancelAnimation: () => {},
@@ -66,15 +69,18 @@ function createLoader(options = {}) {
     withTiming: (target, config, complete) => { animations.push({ kind: 'timing', target, config, complete }); return target; },
   };
   const rngh = { GestureDetector: 'GestureDetector', GestureHandlerRootView: 'GestureHandlerRootView',
-    Gesture: { Tap() {
+    Gesture: { Pan() {
       const g = { config: {}, handlers: {} };
-      for (const k of ['enabled','maxDuration','maxDistance','shouldCancelWhenOutside']) g[k] = v => { g.config[k]=v; return g; };
-      for (const k of ['onBegin','onTouchesDown','onTouchesMove','onEnd','onFinalize']) g[k] = v => { g.handlers[k]=v; return g; };
+      for (const k of ['enabled','minDistance','maxPointers','shouldCancelWhenOutside']) g[k] = v => { g.config[k]=v; return g; };
+      for (const k of ['onBegin','onTouchesDown','onTouchesMove','onUpdate','onEnd','onFinalize']) g[k] = v => { g.handlers[k]=v; return g; };
       gestures.push(g); return g;
     } },
   };
   const externals = {
     react,
+    '@shopify/react-native-skia': { Skia:{RuntimeEffect:{Make:code=>({code})}},
+      Canvas:'SkiaCanvas', Fill:'SkiaFill', Group:'SkiaGroup', ImageShader:'ImageShader',Shader:'SkiaShader',
+      makeImageFromView:()=>Promise.resolve({width:()=>460,height:()=>122}) },
     'react-native-reanimated': reanimated,
     'react-native-gesture-handler': rngh,
     'react-native-worklets': { scheduleOnRN: (fn,...args) => options.queueRN ? rnJobs.push(()=>fn(...args)) : fn(...args) },

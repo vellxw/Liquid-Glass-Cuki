@@ -3,6 +3,7 @@ Records genuine native frames and asserts press/release and callback behavior.
 No account login, credentials, uploads or changes to product data are involved.
 """
 import io
+import math
 import json
 import re
 import subprocess as sp
@@ -99,115 +100,103 @@ if ready is None:
     capture('startup-failure')
     raise RuntimeError('Native lab did not become accessible. Inspect Metro, logcat, XML and screenshot artifacts.')
 
-time.sleep(2)
+
+for attempt in range(30):
+    root=hierarchy()
+    n=find(root,'lab-ready')
+    if n is not None and n.get('text')=='Motor: listo':break
+    time.sleep(.4)
+else:
+    capture('texture-not-ready')
+    raise RuntimeError('Native material texture never became ready')
 root=counter(0)
 ready=find(root,'lab-register')
-x,y=center(ready)
-x1,y1,x2,y2=bounds(ready)
-target_box=(x1,y1,x2,y2)
-box=(max(0,x1-12),max(0,y1-12),x2+12,y2+18)
+x1,y1,x2,y2=bounds(ready);w=x2-x1;h=y2-y1
+x,y=center(ready);box=(x1,y1,x2,y2)
+(OUT/'bounds.json').write_text(json.dumps({'button':box,'device':adb('shell','wm','size').decode(),'density':adb('shell','wm','density').decode()}))
 
-# Capture both an EARLY transient and a stable hold. A cold software GPU can stall
-# the first animation; a fixed early screenshot must not be labelled FULL PRESS.
-# Keep cold-start frames/logs, rather than warm them away or assert FPS from them.
-def hold_capture(prefix, early=False):
-    hold=sp.Popen(['adb','shell','input','touchscreen','swipe',str(x),str(y),str(x),str(y),'3000'])
-    time.sleep(.65)
-    if early:
-        capture('early-contact')
-    time.sleep(1.35)
-    image=capture(prefix)
-    hold.wait(timeout=8)
-    time.sleep(.7)
-    return image
+def point(u,v):return (x1+u*w,y1+v*h)
+def mae(a,b):return sum(ImageStat.Stat(ImageChops.difference(a.crop(box),b.crop(box))).mean)/3
 
-def mae(a,b):
-    return sum(ImageStat.Stat(ImageChops.difference(a.crop(box),b.crop(box))).mean)/3
+def path_events(points,duration,hold_start=0,hold_end=0):
+    # Native pointer id/downTime are unchanged throughout all moves.
+    events=[(0,0,*points[0])]
+    for i,p in enumerate(points):events.append((hold_start+round(duration*i/max(1,len(points)-1)),2,*p))
+    end=hold_start+duration+hold_end
+    events.append((end,1,*points[-1]))
+    return events
 
-def foreground_box(image):
-    # Existing label/plus are white; the black-glass rim is excluded. This fixed
-    # region/threshold checks uniform compression, NOT material similarity.
-    w,h=x2-x1,y2-y1
-    roi=(int(w*.16),int(h*.18),int(w*.94),int(h*.84))
-    r,g,b=image.crop(target_box).crop(roi).split()
-    white=ImageChops.darker(ImageChops.darker(r,g),b).point(lambda v:255 if v>=232 else 0)
-    b=white.getbbox()
-    assert b is not None and b[2]-b[0]>100, 'Foreground control region is not visible'
-    return b
+def linear(a,b,n=121):return [(a[0]+(b[0]-a[0])*i/(n-1),a[1]+(b[1]-a[1])*i/(n-1)) for i in range(n)]
 
-def scale_ratio(rest,pressed):
-    a,b=foreground_box(rest),foreground_box(pressed)
-    return (b[2]-b[0])/(a[2]-a[0])
+def run_path(name,events,shots=None):
+    f=OUT/f'{name}-input.csv';f.write_text('\n'.join(','.join(str(round(v,3)) if isinstance(v,float) else str(v) for v in e)for e in events)+'\n')
+    adb('push',str(f),'/data/local/tmp/local-input.csv')
+    stages.append({'name':name,'start':time.monotonic()-video_origin,'durationMs':events[-1][0]})
+    proc=sp.Popen(['adb','shell','CLASSPATH=/data/local/tmp/local-input.jar','app_process','/system/bin','InjectPath','/data/local/tmp/local-input.csv'],stdout=open(OUT/f'{name}-injected.log','w'))
+    t=time.monotonic();result={}
+    for at,label in shots or []:
+        time.sleep(max(0,at-(time.monotonic()-t)))
+        result[label]=capture(label)
+    proc.wait(timeout=max(10,events[-1][0]/1000+5))
+    assert proc.returncode==0, f'Input injection failed: {name}'
+    time.sleep(.6)
+    return result
 
-record=sp.Popen(['adb','shell','screenrecord','--time-limit','10','/sdcard/liquid-phase-a.mp4'])
-time.sleep(.5)
+def switch(label):
+    n=find(hierarchy(),label);assert n is not None,label;tap(n);time.sleep(.65)
+
+# Android damage-based screenrecord contains actual native frames, not a synthesized tween.
+adb('shell','settings','put','system','show_touches','0')
+adb('shell','dumpsys','gfxinfo','host.exp.exponent','reset')
+adb('shell','dumpsys','SurfaceFlinger','--timestats','-clear','-enable')
+record=sp.Popen(['adb','shell','screenrecord','--bit-rate','6000000','--time-limit','120','/sdcard/local-glass.mp4'])
+video_origin=time.monotonic();stages=[]
+time.sleep(.8)
 rest=capture('rest')
-pressed=hold_capture('pressed',early=True)
+run_path('A-quick-tap',path_events([point(.52,.38)]*2,90));counter(1)
+shots=run_path('B-hold-1-second',path_events([point(.50,.38)]*2,3300),[(.8,'hold-1'),(1.9,'hold-2')])
+pressed=shots['hold-1'];stable=mae(pressed,shots['hold-2']);counter(2)
 settled=capture('settled')
-counter(1)
-record.wait(timeout=14)
-adb('pull','/sdcard/liquid-phase-a.mp4',str(OUT/'native-press.mp4'))
+shots=run_path('C-horizontal-drag',path_events(linear(point(.16,.40),point(.84,.40)),2800,1000,1100),[(.7,'drag-left'),(4.5,'drag-right')]);counter(3)
+# Pure native presented-frame stats for an uninterrupted repeated drag (no screencaps during it).
+adb('shell','dumpsys','SurfaceFlinger','--timestats','-clear','-enable')
+run_path('C2-drag-performance',path_events(linear(point(.18,.42),point(.82,.42),181)+linear(point(.82,.42),point(.18,.42),181),5600))
+(OUT/'surfaceflinger-drag.txt').write_bytes(adb('shell','dumpsys','SurfaceFlinger','--timestats','-dump'))
+counter(4)
+radx=min(w*.045,h*.14);rady=radx
+circle=[(x+w*.04+radx*math.cos(i/180*2*math.pi),y-h*.10+rady*math.sin(i/180*2*math.pi))for i in range(181)]
+run_path('D-small-circle',path_events(circle,3000,400,400));counter(5)
+run_path('E-short-vertical',path_events(linear(point(.62,.30),point(.62,.70))+linear(point(.62,.70),point(.62,.30)),2400,300,400));counter(6)
+run_path('F-cancel-outside',path_events(linear(point(.76,.50),(x2+80,y)),1500,200,300));counter(6)
+cancelled=capture('cancelled')
+# Refraction proof uses a diagnostic grid in the sampled native material, not letters.
+switch('Cuadrícula de refracción');grid_rest=capture('grid-rest')
+proof=run_path('G-refraction-grid',path_events(linear(point(.42,.50),point(.77,.50)),2400,1700,1300),[(1.0,'grid-left'),(4.6,'grid-right')]);counter(7)
+switch('Cuadrícula de refracción')
+# Definitive ablation: with local deformation OFF, nothing shrinks/moves/dims.
+switch('Deformación local');off_rest=capture('off-rest')
+off=run_path('H-deformation-OFF',path_events([point(.55,.5)]*2,2400),[(1.2,'off-hold')]);counter(8)
+switch('Deformación local')
+final=capture('final-rest')
+# Finish recording without waiting for its upper limit.
+adb('shell','pkill','-2','screenrecord');record.wait(timeout=10)
+adb('pull','/sdcard/local-glass.mp4',str(OUT/'native-all-actions.mp4'))
+(OUT/'stages.json').write_text(json.dumps(stages,indent=2))
+(OUT/'surfaceflinger-full.txt').write_bytes(adb('shell','dumpsys','SurfaceFlinger','--timestats','-dump'))
 
-press_mae=mae(rest,pressed)
-settle_mae=mae(rest,settled)
-normal_ratio=scale_ratio(rest,pressed)
-assert .976<=normal_ratio<=.984, f'Full press must reach 0.98 scale, not just change brightness: {normal_ratio}'
-assert settle_mae < 1, f'Native rest did not recover: MAE {settle_mae}'
-
-# Repeat after first-use initialization; retain separate UI interval reports in logs.
-warm_pressed=hold_capture('warm-pressed')
-counter(2)
-warm_ratio=scale_ratio(rest,warm_pressed)
-assert .976<=warm_ratio<=.984, f'Warm hold geometry: {warm_ratio}'
-
-# Prove physical readability without the optional optical overlay.
-optics=find(hierarchy(),'Óptica local del laboratorio')
-assert optics is not None, 'Optics switch missing'
-tap(optics)
-assert find(hierarchy(),'Óptica local del laboratorio').get('checked')=='false'
-no_optics=hold_capture('pressed-no-optics')
-counter(3)
-no_optics_ratio=scale_ratio(rest,no_optics)
-assert .976<=no_optics_ratio<=.984, f'Physical press disappeared without optics: {no_optics_ratio}'
-tap(find(hierarchy(),'Óptica local del laboratorio'))
-
-# Horizontal escape: no scroll needed to find the counter again.
-adb('shell','input','swipe',str(x),str(y),str(rest.width-1),str(y),'500')
-time.sleep(.6)
-counter(3)
-
-node=find(hierarchy(),'Deshabilitar Registrar')
-assert node is not None,'Disabled switch missing'
-tap(node)
-assert find(hierarchy(),'Deshabilitar Registrar').get('checked') == 'true', 'Disabled switch did not change'
-adb('shell','input','tap',str(x),str(y))
-time.sleep(.5)
-counter(3)
-tap(find(hierarchy(),'Deshabilitar Registrar'))
-
-node=find(hierarchy(),'Forzar movimiento reducido')
-assert node is not None,'Reduced-motion switch missing'
-tap(node)
-assert find(hierarchy(),'Forzar movimiento reducido').get('checked') == 'true', 'Reduced switch did not change'
-reduced_rest=capture('reduced-rest')
-reduced_pressed=hold_capture('reduced-pressed')
-root=counter(4)
-reduced_ratio=scale_ratio(reduced_rest,reduced_pressed)
-assert .994<=reduced_ratio<=1.002 and reduced_ratio>normal_ratio+.01, f'Reduced geometry is not limited: {reduced_ratio}'
-reduced_mae=mae(reduced_rest,reduced_pressed)
-(OUT/'result.json').write_text(json.dumps({'native':'Android API 35 / Expo Go / software GPU / debug JS',
-  'pressROI_MAE':press_mae,'settledROI_MAE':settle_mae,'reducedPressROI_MAE':reduced_mae,
-  'foregroundScaleRatio':normal_ratio,'warmForegroundScaleRatio':warm_ratio,
-  'noOpticsForegroundScaleRatio':no_optics_ratio,'reducedForegroundScaleRatio':reduced_ratio,
-  'normalHoldCommit':True,'warmHoldCommit':True,'noOpticsHoldCommit':True,
-  'escapeCancelled':True,'disabledIgnored':True,'reducedCommit':True,
-  'physicalHaptics':'not testable in emulator','release60fps':'not measured',
-  'inputLatency':'not measured; early-contact and cold-start logs retained',
-  'bounds':box},indent=2))
-print('NATIVE_RESULT', (OUT/'result.json').read_text(),flush=True)
-montage=Image.new('RGB',(480,3*164),'#111719')
-d=ImageDraw.Draw(montage)
-for i,(name,im) in enumerate([('Native REST',rest.crop(box)),('Native HOLD',pressed.crop(box)),('Native SETTLED',settled.crop(box))]):
-    im.thumbnail((460,132));montage.paste(im,(10,i*164+23));d.text((10,i*164+5),name,fill='white')
-montage.save(OUT/'native-montage.png')
-print('NATIVE_SMOKE_PASS',flush=True)
+# Report measured differences even if an acceptance assertion fails.
+result={'native':'Expo Go / Android API35 / software GPU', 'button':box,
+ 'restToHoldMAE':mae(rest,pressed),'hold1toHold2MAE':stable,'restToSettledMAE':mae(rest,settled),
+ 'leftToRightMAE':mae(shots['drag-left'],shots['drag-right']),
+ 'gridRestToHoldMAE':mae(grid_rest,proof['grid-left']),
+ 'localOffRestToHoldMAE':mae(off_rest,off['off-hold']),
+ 'cancelRestMAE':mae(rest,cancelled),'finalRestMAE':mae(rest,final),'commits':8,
+ 'pointerInput':'continuous Android MotionEvent stream; no playback animation',
+ 'haptics':'physical sensation not testable on emulator', 'iOS':'not executed'}
+(OUT/'result.json').write_text(json.dumps(result,indent=2));print('LOCAL_RESULT',json.dumps(result),flush=True)
+assert result['restToHoldMAE']>.08,'No visible local pressure response'
+assert result['leftToRightMAE']>.08,'Material did not follow the horizontal drag'
+assert stable<.4,'HOLD continues changing after reaching full pressure'
+assert result['restToSettledMAE']<.5,'REST did not recover exactly'
+assert result['localOffRestToHoldMAE']<.5,'A rigid/fade interaction survives local ablation'
+print('LOCAL_NATIVE_DRAG_PASS',flush=True)
