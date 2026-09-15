@@ -40,6 +40,7 @@ jobs:
           script: |
             bash qa/liquid/android-smoke.sh
             python qa/liquid/validate-locality.py
+            python qa/liquid/home-smoke.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

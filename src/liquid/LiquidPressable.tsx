@@ -42,6 +42,7 @@ export function LiquidPressable({ width, height, style, label, onPress, disabled
   const velocityX = useSharedValue(0), velocityY = useSharedValue(0);
   const releaseX = useSharedValue(0), releaseY = useSharedValue(0);
   const interactionId = useSharedValue(0);
+  const lastMotionTime = useSharedValue(0);
   const accepted = useSharedValue(!disabled);
   const reduceMotion = useMotionPreference(forceReducedMotion);
   const latest = useRef({ onPress, disabled, haptics, onPhase });
@@ -109,7 +110,7 @@ export function LiquidPressable({ width, height, style, label, onPress, disabled
       const id=interactionId.value;
       if (!success) scheduleOnRN(dispatch,{phase:'cancel',interactionId:id,timestamp:Date.now()});
       // A bounded sub-dp relaxation of the contact center, not translation of the button.
-      const kick=reduceMotion.value ? 0 : LOCAL_GLASS.releaseKick;
+      const kick=reduceMotion.value || Date.now()-lastMotionTime.value>80 ? 0 : LOCAL_GLASS.releaseKick;
       releaseX.value=Math.max(-kick,Math.min(kick,velocityX.value*.0006));
       releaseY.value=Math.max(-kick,Math.min(kick,velocityY.value*.0006));
       releaseX.value=withTiming(0,{duration:100,reduceMotion:ReduceMotion.Never});
@@ -133,7 +134,7 @@ export function LiquidPressable({ width, height, style, label, onPress, disabled
         'worklet';
         if(!accepted.value || event.numberOfPointers!==1 || !insideCapsule(event.x,event.y,width,height))return;
         interactionId.value+=1;contactX.value=event.x;contactY.value=event.y;
-        releaseX.value=0;releaseY.value=0;velocityX.value=0;velocityY.value=0;active.value=true;
+        releaseX.value=0;releaseY.value=0;velocityX.value=0;velocityY.value=0;lastMotionTime.value=Date.now();active.value=true;
         cancelAnimation(pressure);
         // A local depression is already present in the first submitted contact frame.
         pressure.value=Math.max(LOCAL_GLASS.contactSeed,Math.min(1,pressure.value));
@@ -159,11 +160,11 @@ export function LiquidPressable({ width, height, style, label, onPress, disabled
         if(!active.value || !accepted.value)return;
         if(!insideCapsule(event.x,event.y,width,height)){release(false);return;}
         contactX.value=event.x;contactY.value=event.y;
+        lastMotionTime.value=Date.now();
         const vmax=LOCAL_GLASS.maxVelocity;
         velocityX.value=Math.max(-vmax,Math.min(vmax,event.velocityX));
         velocityY.value=Math.max(-vmax,Math.min(vmax,event.velocityY));
-        // No per-input velocity animations. The optical sampler expires stale velocity
-        // after 80ms of stationary contact, once per display frame.
+        // No per-input velocity animation. Release rejects stale velocity after 80ms.
       })
       .onEnd((event,success)=>{
         'worklet';
@@ -173,7 +174,7 @@ export function LiquidPressable({ width, height, style, label, onPress, disabled
       })
       .onFinalize((_event,success)=>{ 'worklet';release(success); });
   },[disabled,width,height,accepted,interactionId,contactX,contactY,active,pressure,reduceMotion,dispatch,
-    velocityX,velocityY,releaseX,releaseY]);
+    velocityX,velocityY,releaseX,releaseY,lastMotionTime]);
 
   const physics = useMemo<LiquidPhysics>(() => ({ pressure, contactX, contactY, velocityX, velocityY,
     releaseX, releaseY, active, reduceMotion, width, height, intensity }),

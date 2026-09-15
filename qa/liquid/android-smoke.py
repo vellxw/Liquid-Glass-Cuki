@@ -113,7 +113,7 @@ root=counter(0)
 ready=find(root,'lab-register')
 x1,y1,x2,y2=bounds(ready);w=x2-x1;h=y2-y1
 x,y=center(ready);box=(x1,y1,x2,y2)
-(OUT/'bounds.json').write_text(json.dumps({'button':box,'device':adb('shell','wm','size').decode(),'density':adb('shell','wm','density').decode()}))
+(OUT/'bounds.json').write_text(json.dumps({'button':box,'logicalScale':'Home viewport / 375; no enlarged laboratory button','device':adb('shell','wm','size').decode(),'density':adb('shell','wm','density').decode()}))
 
 def point(u,v):return (x1+u*w,y1+v*h)
 def mae(a,b):return sum(ImageStat.Stat(ImageChops.difference(a.crop(box),b.crop(box))).mean)/3
@@ -146,7 +146,7 @@ def switch(label):
     n=find(hierarchy(),label);assert n is not None,label;tap(n);time.sleep(.65)
 
 # Compare the same button rectangle with its original native SVG before recording.
-switch('Referencia estática');original=capture('original-svg-rest')
+switch('Referencia estática');time.sleep(1.5);original=capture('original-svg-rest')
 switch('Referencia estática');time.sleep(.5)
 # Persistent renderer is already visible in REST. No discarded warmup contact.
 
@@ -216,6 +216,7 @@ result={'native':'Expo Go / Android API35 / software GPU', 'button':box,
  'pointerInput':'continuous Android MotionEvent stream; no playback animation',
  'haptics':'physical sensation not testable on emulator', 'iOS':'not executed'}
 (OUT/'result.json').write_text(json.dumps(result,indent=2));print('LOCAL_RESULT',json.dumps(result),flush=True)
+assert result['originalRestMAE']<4.0,'Persistent renderer changed approved native resting state'
 assert result['geometryOnlyMAE']>.15,'Pressure is only a lighting change'
 assert result['restToHoldMAE']>.7,'No visible local pressure response'
 assert result['leftToRightMAE']>.08,'Material did not follow the horizontal drag'

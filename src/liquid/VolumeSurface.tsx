@@ -17,7 +17,10 @@ function raster(svgText:string,width:number,height:number):SkImage|null{
   const surface=Skia.Surface.Make(width,height);
   if(!surface)return null;
   surface.getCanvas().clear(Skia.Color('transparent'));
-  surface.getCanvas().drawSvg(svg,width,height);
+  // SVG root dimensions are in design units. drawSvg container size alone does
+  // not override explicit root width/height; transform the canvas deliberately.
+  surface.getCanvas().scale(width/460,height/122);
+  surface.getCanvas().drawSvg(svg,460,122);
   surface.flush();
   return surface.makeImageSnapshot();
 }

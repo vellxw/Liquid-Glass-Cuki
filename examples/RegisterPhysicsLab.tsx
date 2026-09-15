@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Switch, Text, TextInput, View, ScrollView, useWindowDimensions } from 'react-native';
+import { StyleSheet, Switch, Text, TextInput, View, Pressable, ScrollView, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurTargetView } from 'expo-blur';
 import Animated, { useAnimatedProps, useFrameCallback, useSharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { GlassButton } from '../src/home/GlassButton';
 import { LiquidPressable } from '../src/liquid/LiquidPressable';
+import { CukiHomeDemo } from '../src/demo/CukiHomeDemo';
 import { LOCAL_GLASS } from '../src/liquid/physics';
 import type { LiquidEvent, LiquidPhysics } from '../src/liquid/types';
 type Frame={t:number;x:number;y:number;p:number;vx:number;vy:number;dt:number};
@@ -43,30 +44,33 @@ export function RegisterPhysicsLab(){
   const target=useRef<View|null>(null);
   const [commits,setCommits]=useState(0),[ready,setReady]=useState(false);
   const [mechanical,setMechanical]=useState(true);
+  const [showHome,setShowHome]=useState(false);
   const [legacy,setLegacy]=useState(false),[lighting,setLighting]=useState(true);
   const [enabled,setEnabled]=useState(true),[grid,setGrid]=useState(false),[debug,setDebug]=useState(false);
   const [reduced,setReduced]=useState(false),[disabled,setDisabled]=useState(false);
   const [event,setEvent]=useState('REST'),[report,setReport]=useState<Report|null>(null);
-  const scale=Math.min(1.6,(width-insets.left-insets.right-32)/230);
+  const scale=Math.min(1.6,(width-insets.left-insets.right)/375);
   const onPhase=useCallback((e:LiquidEvent)=>{setEvent(e.phase);console.log('[local-phase]',JSON.stringify(e));},[]);
   const onReport=useCallback((r:Report)=>{setReport(r);console.log('[local-trace]',JSON.stringify(r));},[]);
   const onReady=useCallback((value:boolean)=>setReady(value),[]);
+  if(showHome)return <CukiHomeDemo/>;
   return <View style={styles.screen}>
     <BlurTargetView ref={target} style={StyleSheet.absoluteFill}/>
     <ScrollView contentContainerStyle={{paddingTop:insets.top+24,paddingHorizontal:16,paddingBottom:insets.bottom+80}}>
       <Text style={styles.title}>Registrar · vidrio local</Text>
       <Text style={styles.note}>Presiona y arrastra. El vidrio cede localmente; la silueta no se escala. El estado de reposo usa la misma ruta de render.</Text>
       <View style={styles.bench}>
-        <LiquidPressable width={230*scale} height={61*scale} label="Registrar +" testID="lab-register"
+        {legacy ? <GlassButton key="original-native" variant="primary" label="Registrar +" scale={scale} blurTarget={target}/> : <LiquidPressable key="volume-native" width={230*scale} height={61*scale} label="Registrar +" testID="lab-register"
           disabled={disabled} forceReducedMotion={reduced} onPress={()=>setCommits(v=>v+1)} onPhase={onPhase}>
           {physics=><>
-            <GlassButton variant="primary" label="Registrar +" scale={scale} blurTarget={target} interaction={legacy?undefined:physics}
+            <GlassButton variant="primary" label="Registrar +" scale={scale} blurTarget={target} interaction={physics}
               lighting={lighting} opticsEnabled={enabled} mechanicalSupport={mechanical} debug={debug} proofGrid={grid} onSurfaceReady={onReady}/>
             {debug && <Probe physics={physics} onReport={onReport} debug={debug}/>}
           </>}
-        </LiquidPressable>
+        </LiquidPressable>}
       </View>
-      <Text style={styles.text} testID="lab-commits">Acciones: {commits}</Text>
+      <View style={styles.row}><Text style={styles.text} testID="lab-commits">Acciones: {commits}</Text>
+        <Pressable style={{padding:10}} accessibilityRole="button" accessibilityLabel="Ver Home real" testID="lab-open-home" onPress={()=>setShowHome(true)}><Text style={styles.text}>Ver Home</Text></Pressable></View>
       <Text style={styles.small} testID="lab-ready">{ready ? 'Motor: listo' : 'Preparando material vectorial'}</Text>
       <Text style={styles.small} testID="lab-phase">Estado: {event}</Text>
       <Text style={styles.note}>Tap · Hold 1 s · Drag horizontal · Círculo · Drag vertical · Arrastrar afuera para cancelar</Text>

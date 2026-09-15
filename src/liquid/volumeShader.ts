@@ -17,7 +17,7 @@ uniform float debug;
 
 float spec(float3 n,float3 h){
   float v=max(0.0,dot(n,h));float v2=v*v;float v4=v2*v2;float v8=v4*v4;
-  return v8*v8*v8*v8; // bounded, broad environmental lobe, exponent 32
+  float v16=v8*v8; float v32=v16*v16; return v32*v32; // environmental lobe, exponent 64
 }
 half4 over(half4 a,half4 b){return a+b*(1.0-a.a);}
 half4 main(float2 p){
@@ -55,14 +55,14 @@ half4 main(float2 p){
   // Preserve alpha/coverage: no opaque pressure disk, no changed outer silhouette.
   float alpha=max(float(face.a),.0001);
   float3 rgb=float3(face.rgb)/alpha;
-  float3 cold=normalize(float3(-.25,-.36,1.0));
-  float3 warm=normalize(float3(.28,.22,1.0));
+  float3 cold=normalize(float3(-.06,-.15,1.0));
+  float3 warm=normalize(float3(.24,.18,1.0));
   float coldDelta=spec(n,cold)-spec(n0,cold);
   float warmDelta=spec(n,warm)-spec(n0,warm);
   float slopeDelta=dot(n,float3(-.34,-.48,.808))-dot(n0,float3(-.34,-.48,.808));
   float support=k*pin;
   // Signed redistribution of reflection, with very weak center AO. No isolated circle.
-  rgb+=lighting*(float3(.65,.82,.92)*coldDelta*.38+float3(.89,.80,.68)*warmDelta*.16+slopeDelta*.20)*pin;
+  rgb+=lighting*(float3(.65,.82,.92)*coldDelta*.50+float3(.89,.80,.68)*warmDelta*.12+slopeDelta*.16)*pin;
   rgb*=1.0-lighting*.035*abs(pressure)*support;
   if(debug>.5){
     float mark=1.0-smoothstep(.35,.85,abs(length(d)-radius));
