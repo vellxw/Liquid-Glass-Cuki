@@ -1,0 +1,73 @@
+name: Registrar release APK performance
+on:
+  pull_request:
+    paths:
+      - 'src/liquid/**'
+      - 'src/home/LocalRegisterArtwork.tsx'
+      - 'qa/performance/**'
+      - '.github/workflows/performance-release.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  release-android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - run: npm install --no-audit --no-fund
+      - run: python -m pip install pillow perfetto
+      - name: Generate native project and profileable release manifest
+        run: |
+          npx expo prebuild --platform android --no-install
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/src/main/AndroidManifest.xml')
+          s=p.read_text().replace('</application>','<profileable android:shell="true" /></application>')
+          p.write_text(s)
+          PY
+      - name: Compile x86_64 release APK (no Metro)
+        env:
+          EXPO_PUBLIC_LIQUID_LAB: '1'
+        run: |
+          cd android
+          ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64 --max-workers=2 --no-daemon --console=plain
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          cores: 2
+          disable-animations: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-metrics
+          script: bash qa/performance/release-ci.sh
+      - name: Archive exact inputs
+        if: always()
+        run: |
+          mkdir -p qa/liquid/native-output
+          git rev-parse HEAD > qa/liquid/native-output/source-commit.txt
+          git archive --format=zip --prefix=Liquid-Glass-Cuki/ -o qa/liquid/native-output/source.zip HEAD
+          cp package-lock.json qa/liquid/native-output/installed-package-lock.json || true
+          sha256sum android/app/build/outputs/apk/release/app-release.apk > qa/liquid/native-output/apk-sha256.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: registrar-release-performance
+          path: qa/liquid/native-output/
+          retention-days: 14
