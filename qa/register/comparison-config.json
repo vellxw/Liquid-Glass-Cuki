@@ -1,0 +1,9 @@
+{
+  "baselineCommit": "be81c2ec8a451e7298c67ad1abc835c85a90293e",
+  "baselineTree": "978b38dbc209bdeb48c44affbc5d8f220da2ba0b",
+  "reference": { "resolution": [941,1672], "origin": [241,860], "scale": 1 },
+  "deviceBefore": { "resolution": [600,1335], "origin": [116,637], "scale": 0.8 },
+  "canonical": { "buttonWidth":460, "buttonHeight":122, "padding":12 },
+  "mask": { "signedDistanceMin":-15, "signedDistanceMax":3, "cornerWidth":90 },
+  "method": "Translation and uniform scale only. Mask fixed before the material edit; full perimeter including all corners and highlights. No photo reconstruction, exposure normalization or mask erosion. Vector diagnostics do not include native blur or platform text; compare vector-before/vector-after separately from device-before. Reference height is approximately 124px vs frozen 122px: no anisotropic correction."
+}

@@ -1,0 +1,94 @@
+{
+  "baseCommit": "be81c2ec8a451e7298c67ad1abc835c85a90293e",
+  "secondarySHA256": "b30a87b96bb2f1655eb1d3dd56a221e68e48ce71e0a8b5948223b7b29d0fb606",
+  "primaryContract": {
+    "role": "button",
+    "label": "Registrar +",
+    "normal": [
+      {
+        "width": 460,
+        "height": 122,
+        "borderRadius": 61
+      },
+      null,
+      {
+        "opacity": 1
+      }
+    ],
+    "pressed": [
+      {
+        "width": 460,
+        "height": 122,
+        "borderRadius": 61
+      },
+      null,
+      {
+        "opacity": 0.76
+      }
+    ],
+    "text": {
+      "x": 193,
+      "baseline": 183,
+      "width": 254,
+      "size": 34,
+      "scale": 2,
+      "children": [
+        "Registrar +"
+      ]
+    },
+    "svg": {
+      "width": 460,
+      "height": 122,
+      "viewBox": "0 0 460 122"
+    },
+    "blur": {
+      "intensity": 30,
+      "tint": "dark",
+      "blurMethod": "none",
+      "style": [
+        {
+          "position": "absolute",
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "bottom": 0
+        },
+        {
+          "opacity": 0.22
+        }
+      ],
+      "children": []
+    }
+  },
+  "protectedFiles": {
+    "src/bottom-nav/BottomNavGlass.tsx": "d9a2ca8ab76f661ff94430a7534b67b5b0a48b3d926b29c317d96f9da3dcb1ce",
+    "src/bottom-nav/GlassIcons.tsx": "d74b8b333e57d2792cc34c3444f05f79ad793eb003105d28b9f0ca7960ca7d9b",
+    "src/bottom-nav/GlassMaterial.tsx": "a13c0fe3d04c9fcc970c663fef6b6a8da3aa99efe0f75ff3c43ed052e31e4f40",
+    "src/bottom-nav/NativeLabel.tsx": "ddc88ed76420e325263903b44692183c10be5dddedc5b89e188c0223de975ab1",
+    "src/bottom-nav/ReferenceFrame.tsx": "c27d7be1314eda651a008233f17faa2ee437bc91d0c40b526e6306b7aa928e42",
+    "src/bottom-nav/index.ts": "5f3d7a16552be57c6cb0fe9ebceb408760f52adc2c444d09e8bf5511de65808c",
+    "src/bottom-nav/tokens.ts": "3ebe6e9a8d80e0fd5ed7459feffc45bfb08c2f08f938b9088b726a8c8c2b2465",
+    "src/demo/CukiHomeDemo.tsx": "3786888489997ad28ffac928d79936574714211d814f7bd17c75654f7d5ccea0",
+    "src/home/CaloriesRing.tsx": "a724abae7e769a8230d2b96fa27c4ef457245284e9f6312c13abff5e41a080b6",
+    "src/home/HomeContent.tsx": "756cf80943d2c28bef4721a5950760017ccd7cac2fc12448f2aaa7a6a2340fe1",
+    "src/home/HomeHeader.tsx": "6456c09678ed68c70b9de79127c327c82945ea3e40b682464b0657d4519ea9d6",
+    "src/home/HomeIcon.tsx": "c69dfc4ebf4ec912419550c3c7ae304ecd66092b50998c690cb58dba371abf55",
+    "src/home/HomeScreen.tsx": "25c1cd1d9fb7d680ac2fc58cf718392b975b5a0fda6949e42e1031ff7376a4cb",
+    "src/home/HomeText.tsx": "eaf3d2d8a19091edf261597c5d3e3986090a6142c59f424d0f0ab14e26b4312e",
+    "src/home/MacroRow.tsx": "33f1d61275c6e38559f5093e7f95d5decd742f3b1330c5e05b46698144913bc6",
+    "src/home/NextWorkoutCard.tsx": "019de7e1be625a5c98615d0b12ca7607b039a31e7d492cf9d3034ab5936f590f",
+    "src/home/NutritionSection.tsx": "568eeb0aaecfeb88bb974b7fe798904b4a5f23fcf4c19af315253856f51e432c",
+    "src/home/PhotoSlot.tsx": "f40dd073a53eaf63ed9814919bd0a6ec7159f23174c2d854c03593bab83ad6ca",
+    "src/home/PlantProgress.tsx": "18d3a206bc73c8b66e7f9d62653f5de8a42d9ac6d0155bb8680e7ae676ecc18a",
+    "src/home/PrimaryRegisterButton.tsx": "8e8672ff88bbee3d107d21759824e10be2184747e222836a3c106857e33f04d8",
+    "src/home/ProgressBar.tsx": "d854982f0acb8dbe5340637be2ce6ad2b69555707a612e3e648237c1552128a8",
+    "src/home/index.ts": "49355e144cfa5442fad9a2c406e08cd017a9e2d9e119fae48e341d5ad143a053",
+    "src/home/layout.ts": "729e25dd1ee6c30d49ae89dfa4fdabc639034b11022438e26fcbc051266a1347",
+    "src/home/tokens.ts": "26b3924b56b9714ae86202b7965446a380bc5d20391ef1f87a67173013a71a87",
+    "src/home/types.ts": "6db867fb6a338ebaaf46dbc77bb3bfa7f207d402586e47aa139edeba27ef9bd4",
+    "App.tsx": "c492e708316aed9d132680ef9cf3e90dc8677f2201a50ffec8cdf25b08b1ac17",
+    "package.json": "28c220005b0967e4d3601ec26b14f12b94052881eb2e63ea49bbec0b1c86126b",
+    "app.json": "e5466df8e89f3d933b070d27519fa50adbec0f7991f8505f6a12ac37f244d732"
+  },
+  "primaryForeground": "<linearGradient id=\"button-circle\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop stop-color=\"#34464F\" offset=\"0\"></stop><stop offset=\"0.55\" stop-color=\"#0C171D\"></stop><stop offset=\"1\" stop-color=\"#4D5F67\"></stop></linearGradient><circle cx=\"118\" cy=\"61\" r=\"32.5\" fill=\"#081015\" opacity=\"0.6\"></circle><circle cx=\"118\" cy=\"61\" r=\"30.5\" fill=\"url(#button-circle)\" stroke=\"#DCE8ED\" stroke-width=\"2\"></circle><g transform=\"translate(101 44)\"><svg width=\"34\" height=\"34\" viewBox=\"0 0 34 34\"><g fill=\"none\" stroke=\"#EDF1F4\" stroke-width=\"2.3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M17 5v24M5 17h24\"></path></g></svg></g>"
+}
