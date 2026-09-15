@@ -4,7 +4,10 @@ const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
 
-function createLoader() {
+function createLoader(options = {}) {
+  const effects = [], cleanups = [], animations = [], gestures = [], haptics = [], rnJobs = [];
+  const listeners = {};
+  const sharedValues = [];
   const cache = new Map();
   const hookState = [];
   let hookIndex = 0;
@@ -15,6 +18,7 @@ function createLoader() {
     memo: fn => fn,
     useId: () => `offline${++nextId}`,
     useCallback: fn => fn,
+    useEffect: fn => effects.push(fn),
     useMemo: fn => fn(),
     useRef: current => ({ current }),
     useState(initial) {
@@ -26,7 +30,10 @@ function createLoader() {
     },
   };
   const native = {
-    View: 'View', Text: 'Text', Pressable: 'Pressable', StatusBar: 'StatusBar',
+    View: 'View', Text: 'Text', Pressable: 'Pressable', StatusBar: 'StatusBar', Button: 'Button', Switch: 'Switch',
+    AppState: { currentState: 'active', addEventListener: (name, fn) => { listeners['app:'+name]=fn; return { remove() { delete listeners['app:'+name]; } }; } },
+    AccessibilityInfo: { isReduceMotionEnabled: () => Promise.resolve(!!options.reduced),
+      addEventListener: (name,fn) => { listeners[name]=fn; return { remove() { delete listeners[name]; } }; } },
     Image: 'Image', ScrollView: 'ScrollView', Modal: 'Modal',
     Animated: { View: 'AnimatedView', ScrollView: 'AnimatedScrollView',
       Value: class { constructor(value) { this.value = value; } },
@@ -40,11 +47,39 @@ function createLoader() {
     useWindowDimensions: () => ({ width: 410, height: 890, scale: 3, fontScale: 1 }),
   };
   const svg = { __esModule: true, default: 'svg' };
-  for (const key of ['Circle', 'ClipPath', 'Defs', 'G', 'LinearGradient', 'Path', 'RadialGradient', 'Stop', 'Rect']) {
+  for (const key of ['Ellipse', 'Circle', 'ClipPath', 'Defs', 'G', 'LinearGradient', 'Path', 'RadialGradient', 'Stop', 'Rect']) {
     svg[key] = key[0].toLowerCase() + key.slice(1);
   }
+  const snapshot = updater => {
+    const value = updater();
+    Object.defineProperty(value, '__updater', { value: updater, enumerable: false });
+    return value;
+  };
+  const reanimated = { __esModule: true, default: { View: 'AnimatedView', createAnimatedComponent: c => c },
+    createAnimatedComponent: c => c, ReduceMotion: { Never: 'never', System: 'system' },
+    useSharedValue: value => { const sv = { value, modify: fn => { sv.value = fn(sv.value); } }; sharedValues.push(sv); return sv; },
+    useReducedMotion: () => !!options.reduced,
+    useAnimatedProps: snapshot, useAnimatedStyle: snapshot,
+    useAnimatedReaction: () => {}, useFrameCallback: () => ({ setActive() {} }),
+    cancelAnimation: () => {},
+    withSpring: (target, config, complete) => { animations.push({ kind: 'spring', target, config, complete }); return target; },
+    withTiming: (target, config, complete) => { animations.push({ kind: 'timing', target, config, complete }); return target; },
+  };
+  const rngh = { GestureDetector: 'GestureDetector', GestureHandlerRootView: 'GestureHandlerRootView',
+    Gesture: { Tap() {
+      const g = { config: {}, handlers: {} };
+      for (const k of ['enabled','maxDuration','maxDistance','shouldCancelWhenOutside']) g[k] = v => { g.config[k]=v; return g; };
+      for (const k of ['onBegin','onTouchesDown','onTouchesMove','onEnd','onFinalize']) g[k] = v => { g.handlers[k]=v; return g; };
+      gestures.push(g); return g;
+    } },
+  };
   const externals = {
     react,
+    'react-native-reanimated': reanimated,
+    'react-native-gesture-handler': rngh,
+    'react-native-worklets': { scheduleOnRN: (fn,...args) => options.queueRN ? rnJobs.push(()=>fn(...args)) : fn(...args) },
+    'expo-haptics': { AndroidHaptics: { Segment_Frequent_Tick:'tick', Virtual_Key:'key' }, ImpactFeedbackStyle: { Soft:'soft', Light:'light' },
+      impactAsync: v => { haptics.push(v); return Promise.resolve(); }, performAndroidHapticsAsync: v => { haptics.push(v); return Promise.resolve(); } },
     'react-native': native,
     'react-native-svg': svg,
     'expo-blur': { BlurView: 'BlurView', BlurTargetView: 'BlurTargetView' },
@@ -84,7 +119,7 @@ function createLoader() {
       ? load(path.resolve(path.dirname(filename), name))
       : externals[name] ?? (() => { throw new Error(`Unmocked package: ${name}`); })();
     vm.runInNewContext(result.outputText, {
-      require: localRequire, exports: module.exports, module, __qaH: h, Fragment: 'fragment', console,
+      require: localRequire, exports: module.exports, module, __qaH: h, Fragment: 'fragment', console, Date, Promise, process,
     }, { filename });
     return module.exports;
   }
@@ -93,6 +128,10 @@ function createLoader() {
     hookIndex = 0;
     return fn(props);
   }
-  return { load, render, native };
+  return { load, render, native, animations, gestures, haptics, sharedValues, listeners,
+    flushEffects() { while (effects.length) { const cleanup = effects.shift()(); if (cleanup) cleanups.push(cleanup); } },
+    cleanup() { while (cleanups.length) cleanups.pop()(); },
+    flushRN() { while (rnJobs.length) rnJobs.shift()(); },
+  };
 }
 module.exports = { createLoader };

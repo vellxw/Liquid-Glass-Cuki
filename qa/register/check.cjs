@@ -41,8 +41,11 @@ test('circle, plus icon and circle gradient retain their exact drawing', () => {
     (n.type === 'linearGradient' && n.props.id?.endsWith('-circle')));
   assert.equal(foreground.map(serialize).join('').replace(/buttonoffline\d+/g, 'button'), fixture.primaryForeground);
 });
-test('all protected runtime files and dependencies are byte-identical', () => {
+test('protected static files remain identical; Phase A entry/dependencies are checked separately', () => {
+  // Explicitly authorized Phase A changes. Never replace the static baseline hashes.
+  const phaseA = new Set(['App.tsx', 'package.json', 'src/home/PrimaryRegisterButton.tsx']);
   for (const [file, hash] of Object.entries(fixture.protectedFiles)) {
+    if (phaseA.has(file)) continue;
     assert.equal(sha(fs.readFileSync(path.join(root, file))), hash, file);
   }
 });
