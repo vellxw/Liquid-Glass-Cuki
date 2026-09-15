@@ -32,6 +32,7 @@ function Probe({physics,onReport,debug}:{physics:LiquidPhysics;onReport:(r:Repor
   },false);
   useEffect(()=>{probe.setActive(true);return ()=>probe.setActive(false);},[probe]);
   const debugProps=useAnimatedProps(()=>({
+    defaultValue: '',
     text:`x ${physics.contactX.value.toFixed(1)}  y ${physics.contactY.value.toFixed(1)}  R ${LOCAL_GLASS.radius}\np ${physics.pressure.value.toFixed(3)}  v ${physics.velocityX.value.toFixed(0)}, ${physics.velocityY.value.toFixed(0)} dp/s`,
   }));
   return debug ? <DebugInput editable={false} multiline animatedProps={debugProps} defaultValue=""

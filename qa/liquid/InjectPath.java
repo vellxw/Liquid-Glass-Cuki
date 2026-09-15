@@ -8,7 +8,9 @@ import java.lang.reflect.Method;
 /** Shell-only CI input tool. Injects ONE continuous native pointer stream. Not shipped in the app. */
 public final class InjectPath {
  public static void main(String[] args) throws Exception {
-  Class<?> klass=Class.forName("android.hardware.input.InputManager");
+  Class<?> klass;
+  try { klass=Class.forName("android.hardware.input.InputManagerGlobal"); }
+  catch(ClassNotFoundException olderAndroid) { klass=Class.forName("android.hardware.input.InputManager"); }
   Object manager=klass.getMethod("getInstance").invoke(null);
   Method inject=klass.getMethod("injectInputEvent",InputEvent.class,int.class);
   long origin=SystemClock.uptimeMillis(),down=origin;

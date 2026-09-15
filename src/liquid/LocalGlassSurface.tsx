@@ -7,8 +7,11 @@ import { DEPRESSION_SKSL } from './depressionShader';
 import { LOCAL_GLASS } from './physics';
 import type { LiquidPhysics } from './types';
 
-const EFFECT=Skia.RuntimeEffect.Make(DEPRESSION_SKSL);
-if(!EFFECT) throw new Error('CUKI local glass shader failed to compile.');
+const EFFECT=(()=>{
+  const compiled=Skia.RuntimeEffect.Make(DEPRESSION_SKSL);
+  if(!compiled) throw new Error('CUKI local glass shader failed to compile.');
+  return compiled;
+})();
 export type LocalGlassSurfaceProps={
   physics:LiquidPhysics; children:ReactNode; enabled?:boolean; debug?:boolean;
   /** Invalidate when the backdrop/material changes. A capture is never made per drag frame. */
