@@ -1,0 +1,36 @@
+{
+  "name": "liquid-glass-cuki",
+  "version": "1.1.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "typecheck": "tsc --noEmit",
+    "check": "node qa/check.cjs && node qa/home/check.cjs",
+    "qa:vector": "node qa/render-vector.cjs",
+    "start:clear": "expo start --go --clear",
+    "doctor": "npx expo-doctor@latest",
+    "check:nav": "node qa/check.cjs",
+    "check:home": "node qa/home/check.cjs",
+    "export:ios": "expo export --platform ios",
+    "export:android": "expo export --platform android"
+  },
+  "dependencies": {
+    "expo": "~57.0.17",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "expo-blur": "~57.0.3",
+    "react-native-svg": "15.15.4",
+    "@react-native-masked-view/masked-view": "0.3.2",
+    "react-native-safe-area-context": "~5.7.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.0",
+    "typescript": "~6.0.3"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}

@@ -1,0 +1,19 @@
+PASS All TS/TSX files parse and transpile without syntax diagnostics
+PASS Reference dimensions and five exact labels
+PASS Aspect ratio stays uniform at 280, 320, 358, 382.4, 600 and 1912 points
+PASS Invalid explicit widths are rejected
+PASS Hit regions share boundaries; no overlap or dead horizontal gaps
+PASS All five hit targets exceed 44 x 44 points at a 280-point bar width
+PASS Icons and the label baseline fit their native press targets
+PASS Hoy is active by default; five separate native Pressables
+PASS Internal selection follows every destination press
+PASS Controlled selection emits changes without overwriting its prop
+PASS Registrar fires its callback on repeated presses
+PASS Disabled navigation does not dispatch events
+PASS Full-width layout waits for measurement then draws
+PASS Android blur requires a target and gets the SDK 31+ method
+PASS Native label baseline calculation uses measured ascent
+PASS Material instance IDs do not collide
+PASS Runtime source contains no bitmap, WebView, HTML or web-canvas imports
+
+17 structural checks passed. Native build, native visual QA and full dependency type-check are NOT performed by this script.

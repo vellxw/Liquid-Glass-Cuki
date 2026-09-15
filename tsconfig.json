@@ -1,0 +1,9 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["App.tsx", "index.ts", "src/**/*.ts", "src/**/*.tsx"]
+}

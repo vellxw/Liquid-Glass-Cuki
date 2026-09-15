@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "CUKI",
+    "slug": "liquid-glass-cuki",
+    "version": "1.1.0",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vellxw.liquidglasscuki"
+    },
+    "android": {
+      "package": "com.vellxw.liquidglasscuki"
+    }
+  }
+}

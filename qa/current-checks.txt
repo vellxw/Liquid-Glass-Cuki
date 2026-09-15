@@ -1,0 +1,48 @@
+
+> liquid-glass-cuki@1.1.0 check
+> node qa/check.cjs && node qa/home/check.cjs
+
+PASS All TS/TSX files parse and transpile without syntax diagnostics
+PASS Reference dimensions and five exact labels
+PASS Aspect ratio stays uniform at 280, 320, 358, 382.4, 600 and 1912 points
+PASS Invalid explicit widths are rejected
+PASS Hit regions share boundaries; no overlap or dead horizontal gaps
+PASS All five hit targets exceed 44 x 44 points at a 280-point bar width
+PASS Icons and the label baseline fit their native press targets
+PASS Hoy is active by default; five separate native Pressables
+PASS Internal selection follows every destination press
+PASS Controlled selection emits changes without overwriting its prop
+PASS Registrar fires its callback on repeated presses
+PASS Disabled navigation does not dispatch events
+PASS Full-width layout waits for measurement then draws
+PASS Android blur requires a target and gets the SDK 31+ method
+PASS Native label baseline calculation uses measured ascent
+PASS Material instance IDs do not collide
+PASS Nav runtime source contains no bitmap, WebView, HTML or web-canvas imports
+
+17 structural checks passed. Native build, native visual QA and full dependency type-check are NOT performed by this script.
+PASS All seven original navigation files retain their SHA-256
+PASS SDK 57 and original native dependencies are retained
+PASS The previous nav-only demo is preserved and its imports resolve
+PASS The logical viewport matches the measured 750 x 1538 crop
+PASS Nav position at the reference safe areas matches the retained review
+PASS Widths scale uniformly and the canvas is centered on larger screens
+PASS Short screens scroll without shrinking navigation
+PASS Invalid viewport dimensions are rejected
+PASS Photo and button geometries retain their aspect ratio at every scale
+PASS Home starts on Hoy and imports the original nav component
+PASS Uncontrolled Home selection updates after an item press
+PASS Controlled Home selection emits without overriding its prop
+PASS Both Registrar buttons receive the same action
+PASS Glass buttons are native Pressables with accessible labels
+PASS Routine, nutrition and profile actions reach their controls
+PASS All four slots are neutral until a real source is supplied
+PASS Runtime source embeds no reference images, base64, HTML or WebView
+PASS Home labels align their baseline using measured native ascent
+PASS Visual progress is clamped independently of the displayed values
+PASS Zero/full ring arcs contain no invalid coordinates
+PASS Home copy and five navigation labels remain exact
+PASS Blur target is rendered before the foreground and navigation
+PASS Demo feedback opens and closes; it is not visible by default
+
+23 Home structural checks passed. Native compilation, typography, blur and device input are not validated by these mocks.
