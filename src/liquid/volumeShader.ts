@@ -9,6 +9,7 @@ uniform shader material;
 uniform shader substrate;
 uniform float2 size;
 uniform float2 touch;
+uniform float3 protectedCircle;
 uniform float pressure;
 uniform float depth;
 uniform float radius;
@@ -44,6 +45,11 @@ half4 main(float2 p){
   float2 d=p-touch;
   float q=dot(d,d)/(radius*radius);
   if(q>=2.25) return half4(0.0);
+  // The native plus is a rigid insert, not refracted lettering or a gel mesh.
+  // Guard includes the full 3.4dp sampling bound plus a bilinear footprint.
+  float insertDistance=length(p-protectedCircle.xy)-protectedCircle.z;
+  float insertMask=protectedCircle.z>0.0?smoothstep(4.4,6.4,insertDistance):1.0;
+  if(insertMask==0.0) return half4(0.0);
 
   float a=max(0.0,1.0-q),b=max(0.0,1.0-q/2.25);
   float k=.65*a*a*a+.35*b*b*b;
@@ -91,7 +97,7 @@ half4 main(float2 p){
     half3 delta=substrate.eval(sampleAt).rgb-substrate.eval(p).rgb;
     after.rgb+=delta*(1.0-deformed.a);
   }
-  return opticalDifference(before.rgb,after.rgb);
+  return opticalDifference(before.rgb,after.rgb)*half(insertMask);
 }
 `;
 /** Only a transparent fallback. A real controlled underlay is passed as ImageShader. */

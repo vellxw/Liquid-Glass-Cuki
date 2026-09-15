@@ -34,3 +34,23 @@ assert.match(shader,/return opticalDifference\(before.rgb,after.rgb\)/);
 assert.match(surface,/<View ref=\{source\} collapsable=\{false\} onLayout=\{prepare\}/);
 assert.doesNotMatch(surface,/!available &&|opacity:|useAnimatedStyle|withTiming|withSpring/);
 console.log('PASS optical overlay: 20000 deterministic color pairs, extreme channels, exact zero support, original native source remains mounted. Native evidence still required.');
+const art=fs.readFileSync(path.join(root,'src/home/LocalRegisterArtwork.tsx'),'utf8');
+assert.match(shader,/if\(insertMask==0\.0\) return half4\(0\.0\)/);
+assert.match(art,/protectedCircle=\{\[118\*s,61\*s,32\.5\*s\]\}/);
+assert.doesNotMatch(art,/circleStyle/);
+const {createLoader}=require('../load-ts.cjs');
+const l=createLoader();
+const {LocalRegisterArtwork}=l.load(path.join(root,'src/home/LocalRegisterArtwork.tsx'));
+const {GlassButton}=l.load(path.join(root,'src/home/GlassButton.tsx'));
+const shared=value=>({value});
+const physics={width:230,height:61,pressure:shared(0),contactX:shared(115),contactY:shared(30.5),
+ velocityX:shared(0),velocityY:shared(0),releaseX:shared(0),releaseY:shared(0),
+ active:shared(false),reduceMotion:shared(false),intensity:1};
+function nodes(n){if(!n||typeof n!=='object')return [];if(Array.isArray(n))return n.flatMap(nodes);
+ return [n,...nodes(n.props?.children)];}
+const normal=nodes(GlassButton({variant:'primary',label:'Registrar +',scale:1}));
+const local=nodes(LocalRegisterArtwork({physics,scale:1,label:'Registrar +'}));
+function circleProps(list){return list.filter(n=>n.type==='Circle').map(n=>({...n.props,
+ fill: typeof n.props.fill==='string'&&n.props.fill.startsWith('url(')?'same-circle-gradient':n.props.fill}));}
+assert.deepEqual(circleProps(local),circleProps(normal));
+console.log('PASS fixed native plus insert: original circle geometry/fill/stroke, no transform, shader sampling exclusion.');
