@@ -67,6 +67,16 @@ for attempt in range(55):
     time.sleep(4)
     try:
         root=hierarchy()
+        # A fresh software-rendered AVD can raise a BACKGROUND Pixel Launcher ANR.
+        # Close only that positively identified launcher dialog; never dismiss an
+        # Expo/CUKI ANR or runtime error. Retain its screenshot as test evidence.
+        launcher_anr = find(root, "Pixel Launcher isn't responding")
+        if launcher_anr is not None:
+            capture('emulator-launcher-anr')
+            close_launcher = find(root, 'android:id/aerr_close')
+            if close_launcher is not None:
+                tap(close_launcher)
+                continue
         # Expo Go opens its developer sheet on first launch; it hides the app
         # accessibility tree. Dismiss ONLY that identified sheet, not error UI.
         if find(root,'Go home') is not None and find(root,'Reload') is not None:
