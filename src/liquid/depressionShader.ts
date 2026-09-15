@@ -12,6 +12,8 @@ uniform float depth;
 uniform float refraction;
 uniform float debug;
 
+float power120(float x){float x2=x*x,x4=x2*x2,x8=x4*x4,x16=x8*x8,x32=x16*x16,x64=x32*x32;return x64*x32*x16*x8;}
+float power150(float x){float x2=x*x,x4=x2*x2,x8=x4*x4,x16=x8*x8,x32=x16*x16,x64=x32*x32,x128=x64*x64;return x128*x16*x4*x2;}
 half4 main(float2 p) {
   if(pressure==0.0) return material.eval(p);
   float r=size.y*.5;
@@ -54,8 +56,8 @@ half4 main(float2 p) {
   // the original flat normal, not an added permanent highlight or dark disk.
   float3 lightA=normalize(float3(-.09,-.12,1.0));
   float3 lightB=normalize(float3(.08,.065,1.0));
-  float specA=pow(max(0.0,dot(normal,lightA)),120.0)-pow(lightA.z,120.0);
-  float specB=pow(max(0.0,dot(normal,lightB)),150.0)-pow(lightB.z,150.0);
+  float specA=power120(max(0.0,dot(normal,lightA)))-power120(lightA.z);
+  float specB=power150(max(0.0,dot(normal,lightB)))-power150(lightB.z);
   float diffuse=dot(normal,normalize(float3(-.45,-.65,1.0)))-.7845;
   rgb*=1.0-.025*support*amount;
   rgb+=support*(float3(.67,.85,.93)*specA*.30 + float3(.92,.81,.68)*specB*.12 + diffuse*.16);

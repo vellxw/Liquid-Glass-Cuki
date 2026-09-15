@@ -63,3 +63,6 @@ export function localSample(x:number,y:number,cx:number,cy:number,w:number,h:num
   const limit=Math.min(1,LOCAL_GLASS.maxRefraction/Math.max(1e-9,Math.hypot(dx,dy)));
   return {z,gx,gy,dx:dx*limit,dy:dy*limit};
 }
+
+/** Secondary support from the current brief; never substitutes the local field. */
+export const MECHANICAL_PRESS = { travel: 2, scale: 0.98, reducedTravel: 0.25, reducedScale: 0.998 } as const;

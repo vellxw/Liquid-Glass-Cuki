@@ -21,5 +21,6 @@ jobs:
       - run: npm run check
       - run: node qa/register/check.cjs
       - run: npm run check:liquid
+      - run: node qa/liquid/pipeline-check.cjs
       - run: npm run export:android
       - run: npm run export:ios

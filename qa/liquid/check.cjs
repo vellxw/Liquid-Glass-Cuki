@@ -30,7 +30,7 @@ function harness(options={}) {
   const manager={fail:()=>{failed=true;g.handlers.onFinalize({},false);}};
   return {l,tree,g,events,physics,commits:()=>commits,
     down(x=115,y=30.5){failed=false;g.handlers.onBegin(evt(x,y));g.handlers.onTouchesDown({numberOfTouches:1,allTouches:[{id:0,x,y}]},manager);},
-    move(x,y){g.handlers.onTouchesMove({numberOfTouches:1,allTouches:[{id:0,x,y}]},manager);},
+    move(x,y){g.handlers.onTouchesMove({numberOfTouches:1,allTouches:[{id:0,x,y}]},manager);g.handlers.onUpdate({x,y,velocityX:0,velocityY:0});},
     secondFinger(){g.handlers.onTouchesDown({numberOfTouches:2,allTouches:[{id:0,x:115,y:30},{id:1,x:120,y:33}]},manager);},
     up(x=115,y=30.5,success=true){g.handlers.onEnd(evt(x,y),success&&!failed);g.handlers.onFinalize(evt(x,y),success&&!failed);},
     finish(){l.animations.at(-1)?.complete?.(true);},
@@ -97,8 +97,8 @@ test('rest is exactly undeformed; spring returns the same one-dimensional height
 });
 test('shader and native backing switch ONLY between representations, not press brightness',()=>{
  const s=fs.readFileSync(path.join(root,'src/liquid/LocalGlassSurface.tsx'),'utf8');
- assert.match(s,/makeImageFromView/);assert.match(s,/<ImageShader/);assert.match(s,/useDerivedValue/);
- assert.doesNotMatch(s,/withRepeat|setInterval/);assert.match(s,/pressure.value!==0 \? 0:1/);
+ assert.match(s,/makeImageFromView/);assert.match(s,/<ImageShader/);assert.match(s,/useDerivedValue/);assert.match(s,/useFrameCallback/);
+ assert.doesNotMatch(s,/withRepeat|setInterval/);assert.match(s,/frame.value.pressure!==0\?0:1/);
 });
 test('native text and circle are outside the refracted subtree',()=>{
  const s=fs.readFileSync(path.join(root,'src/home/LocalRegisterArtwork.tsx'),'utf8');
@@ -108,7 +108,7 @@ test('native text and circle are outside the refracted subtree',()=>{
 });
 test('ablation removes the entire local effect and exposes the untouched native material',()=>{
  const s=fs.readFileSync(path.join(root,'src/liquid/LocalGlassSurface.tsx'),'utf8');
- assert.match(s,/pressure:enabled \? pressure.value : 0/);
+ assert.match(s,/pressure:available\?frame.value.pressure:0/);
  const h=harness();assert.equal(walk(h.tree).some(n=>n.props?.style?.transform),false);
 });
 

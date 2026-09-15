@@ -42,6 +42,7 @@ export function RegisterPhysicsLab(){
   const {width}=useWindowDimensions(),insets=useSafeAreaInsets();
   const target=useRef<View|null>(null);
   const [commits,setCommits]=useState(0),[ready,setReady]=useState(false);
+  const [mechanical,setMechanical]=useState(false);
   const [enabled,setEnabled]=useState(true),[grid,setGrid]=useState(false),[debug,setDebug]=useState(false);
   const [reduced,setReduced]=useState(false),[disabled,setDisabled]=useState(false);
   const [event,setEvent]=useState('REST'),[report,setReport]=useState<Report|null>(null);
@@ -53,14 +54,14 @@ export function RegisterPhysicsLab(){
     <BlurTargetView ref={target} style={StyleSheet.absoluteFill}/>
     <ScrollView contentContainerStyle={{paddingTop:insets.top+24,paddingHorizontal:16,paddingBottom:insets.bottom+80}}>
       <Text style={styles.title}>Registrar · vidrio local</Text>
-      <Text style={styles.note}>Apoya el dedo y desplaza la depresión. El contorno, el texto y el círculo permanecen fijos.</Text>
+      <Text style={styles.note}>Apoya el dedo y desplaza la depresión. Primero prueba la depresión sola; después activa el apoyo mecánico del brief.</Text>
       <View style={styles.bench}>
         <LiquidPressable width={230*scale} height={61*scale} label="Registrar +" testID="lab-register"
           disabled={disabled} forceReducedMotion={reduced} onPress={()=>setCommits(v=>v+1)} onPhase={onPhase}>
           {physics=><>
             <GlassButton variant="primary" label="Registrar +" scale={scale} blurTarget={target} interaction={physics}
-              opticsEnabled={enabled} debug={debug} proofGrid={grid} onSurfaceReady={onReady}/>
-            <Probe physics={physics} onReport={onReport} debug={debug}/>
+              opticsEnabled={enabled} mechanicalSupport={mechanical} debug={debug} proofGrid={grid} onSurfaceReady={onReady}/>
+            {debug && <Probe physics={physics} onReport={onReport} debug={debug}/>}
           </>}
         </LiquidPressable>
       </View>
@@ -70,11 +71,12 @@ export function RegisterPhysicsLab(){
       <Text style={styles.note}>Tap · Hold 1 s · Drag horizontal · Círculo · Drag vertical · Arrastrar afuera para cancelar</Text>
       <View style={styles.row}><Text style={styles.text}>Deformación local</Text><Switch value={enabled} onValueChange={setEnabled} accessibilityLabel="Deformación local"/></View>
       <View style={styles.row}><Text style={styles.text}>Cuadrícula de refracción</Text><Switch value={grid} onValueChange={setGrid} accessibilityLabel="Cuadrícula de refracción"/></View>
+      <View style={styles.row}><Text style={styles.text}>Apoyo mecánico 2 dp</Text><Switch value={mechanical} onValueChange={setMechanical} accessibilityLabel="Apoyo mecánico"/></View>
       <View style={styles.row}><Text style={styles.text}>Debug de contacto</Text><Switch value={debug} onValueChange={setDebug} accessibilityLabel="Debug de contacto"/></View>
       <View style={styles.row}><Text style={styles.text}>Movimiento reducido</Text><Switch value={reduced} onValueChange={setReduced} accessibilityLabel="Forzar movimiento reducido"/></View>
       <View style={styles.row}><Text style={styles.text}>Deshabilitado</Text><Switch value={disabled} onValueChange={setDisabled} accessibilityLabel="Deshabilitar Registrar"/></View>
       <Text style={styles.note}>Sin deformación local no queda un tap de escala o desplazamiento. La cuadrícula es solo una prueba óptica; nunca se usa en la Home.</Text>
-      {debug && <Text style={styles.small}>Callback UI: {report ? `${report.uiCallbackHz.toFixed(1)} Hz · p95 ${report.p95Ms.toFixed(1)} ms` : 'sin medición'}. No equivale a FPS presentados.</Text>}
+      {debug && <Text style={styles.small}>Callback UI: {report ? `${report.uiCallbackHz.toFixed(1)} Hz · p95 ${report.p95Ms.toFixed(1)} ms` : 'sin medición'}. No equivale a FPS presentados. Activar debug añade coste de instrumentación.</Text>}
     </ScrollView>
   </View>;
 }

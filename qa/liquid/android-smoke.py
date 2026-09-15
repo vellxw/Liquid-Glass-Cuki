@@ -193,6 +193,11 @@ switch('Deformación local')
 run_path('I-repeat-quick-tap',path_events([point(.44,.34)]*2,130));counter(9)
 run_path('J-repeat-quick-tap',path_events([point(.72,.45)]*2,150));counter(10)
 final=capture('final-rest')
+switch('Apoyo mecánico')
+run_path('K-combined-press',path_events([point(.55,.45)]*2,2300),[(1.1,'combined-hold')]);counter(11)
+run_path('L-combined-drag',path_events(linear(point(.2,.4),point(.8,.4)),2200,300,300));counter(12)
+switch('Apoyo mecánico')
+
 # Finish recording without waiting for its upper limit.
 adb('shell','pkill','-2','screenrecord');record.wait(timeout=10)
 adb('pull','/sdcard/local-glass.mp4',str(OUT/'native-all-actions.mp4'))
@@ -205,7 +210,7 @@ result={'native':'Expo Go / Android API35 / software GPU', 'button':box,
  'leftToRightMAE':mae(shots['drag-left'],shots['drag-right']),
  'gridRestToHoldMAE':mae(grid_rest,proof['grid-left']),
  'localOffRestToHoldMAE':mae(off_rest,off['off-hold']),
- 'cancelRestMAE':mae(rest,cancelled),'finalRestMAE':mae(rest,final),'commits':10,
+ 'cancelRestMAE':mae(rest,cancelled),'finalRestMAE':mae(rest,final),'commits':12,
  'warmup':'one cancelled native contact before screenrecord; not a cold-start latency test',
  'pointerInput':'continuous Android MotionEvent stream; no playback animation',
  'haptics':'physical sensation not testable on emulator', 'iOS':'not executed'}

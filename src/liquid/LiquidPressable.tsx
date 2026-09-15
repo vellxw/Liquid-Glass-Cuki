@@ -152,7 +152,7 @@ export function LiquidPressable({ width, height, style, label, onPress, disabled
         if(event.numberOfTouches!==1 || !accepted.value || !t || !insideCapsule(t.x,t.y,width,height)){
           release(false);manager.fail();return;
         }
-        if(active.value){contactX.value=t.x;contactY.value=t.y;}
+        // onUpdate is the single coordinate writer; this handler only owns cancellation.
       })
       .onUpdate(event=>{
         'worklet';
@@ -162,9 +162,8 @@ export function LiquidPressable({ width, height, style, label, onPress, disabled
         const vmax=LOCAL_GLASS.maxVelocity;
         velocityX.value=Math.max(-vmax,Math.min(vmax,event.velocityX));
         velocityY.value=Math.max(-vmax,Math.min(vmax,event.velocityY));
-        // Stationary HOLD must not retain stale velocity/anisotropy.
-        velocityX.value=withTiming(0,{duration:LOCAL_GLASS.velocitySettleMs,reduceMotion:ReduceMotion.Never});
-        velocityY.value=withTiming(0,{duration:LOCAL_GLASS.velocitySettleMs,reduceMotion:ReduceMotion.Never});
+        // No per-input velocity animations. The optical sampler expires stale velocity
+        // after 80ms of stationary contact, once per display frame.
       })
       .onEnd((event,success)=>{
         'worklet';
