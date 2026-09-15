@@ -9,6 +9,6 @@ export function PrimaryRegisterButton({ scale, fontFamily, blurTarget, onRegiste
   return <LiquidPressable width={460*PX*scale} height={122*PX*scale} label={COPY.register}
     onPress={onRegister} style={sceneStyle(BOX.register, scale)} testID="home-register">
     {physics => <GlassButton variant="primary" label={COPY.register} scale={scale} fontFamily={fontFamily}
-      blurTarget={blurTarget} interaction={physics} />}
+      blurTarget={blurTarget} interaction={physics} contentFollow />}
   </LiquidPressable>;
 }

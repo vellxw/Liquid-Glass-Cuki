@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { AppState, Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { cancelAnimation, ReduceMotion, useAnimatedReaction, useAnimatedStyle,
+import { cancelAnimation, ReduceMotion, useAnimatedReaction, Easing,
   useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { createHapticGate } from './haptics';
-import { insideCapsule, PRESS, rigidPose, SPRINGS } from './physics';
+import { insideCapsule, LOCAL_GLASS, PRESS, SPRINGS } from './physics';
 import { useMotionPreference } from './useMotionPreference';
 import type { LiquidEvent, LiquidHaptics, LiquidPhysics } from './types';
 
@@ -25,8 +25,9 @@ export type LiquidPressableProps = {
   children: (physics: LiquidPhysics) => ReactNode;
 };
 
-/** Fixed native hit area; only the child surface moves. A single Tap recognizer owns
- * commit/cancel. No JS timers, opacity feedback, JS-per-frame setState or nested press.
+/** Fixed native hit area AND fixed artwork. A zero-distance native Pan begins on
+ * touch-down, stays active through drag and holds without a timeout. Only the
+ * local signed-height field recovers. There is no rigid scale/translation.
  */
 export function LiquidPressable({ width, height, style, label, onPress, disabled = false,
   testID, intensity = 1, haptics = 'contact-and-commit', forceReducedMotion = false,
@@ -38,7 +39,10 @@ export function LiquidPressable({ width, height, style, label, onPress, disabled
   const contactX = useSharedValue(width / 2);
   const contactY = useSharedValue(height / 2);
   const active = useSharedValue(false);
+  const velocityX = useSharedValue(0), velocityY = useSharedValue(0);
+  const releaseX = useSharedValue(0), releaseY = useSharedValue(0);
   const interactionId = useSharedValue(0);
+  const lastMotionTime = useSharedValue(0);
   const accepted = useSharedValue(!disabled);
   const reduceMotion = useMotionPreference(forceReducedMotion);
   const latest = useRef({ onPress, disabled, haptics, onPhase });
@@ -98,72 +102,83 @@ export function LiquidPressable({ width, height, style, label, onPress, disabled
     }
   });
 
-  const gesture = useMemo(() => Gesture.Tap()
-    .enabled(!disabled)
-    .maxDuration(PRESS.maxHoldMs)
-    .maxDistance(PRESS.movementTolerance)
-    .shouldCancelWhenOutside(true)
-    .onBegin(event => {
-      'worklet';
-      if (!accepted.value || event.numberOfPointers !== 1 || !insideCapsule(event.x, event.y, width, height)) return;
-      interactionId.value += 1;
-      contactX.value = event.x;
-      contactY.value = event.y;
-      active.value = true;
-      cancelAnimation(pressure);
-      pressure.value = reduceMotion.value
-        ? withTiming(1, { duration: PRESS.reducedDuration, reduceMotion: ReduceMotion.Never })
-        : withSpring(1, { ...SPRINGS.press, reduceMotion: ReduceMotion.Never });
-      scheduleOnRN(dispatch, { phase: 'contact', interactionId: interactionId.value, timestamp: Date.now() });
-    })
-    .onTouchesDown((event, manager) => {
-      'worklet';
-      const touch = event.allTouches[0];
-      if (event.numberOfTouches !== 1 || !touch || !accepted.value || !insideCapsule(touch.x, touch.y, width, height)) manager.fail();
-    })
-    .onTouchesMove((event, manager) => {
-      'worklet';
-      const touch = event.allTouches[0];
-      if (!accepted.value || event.numberOfTouches !== 1 || !touch || !insideCapsule(touch.x, touch.y, width, height)) {
-        manager.fail();
-        return;
-      }
-      if (active.value) {
-        contactX.value = touch.x;
-        contactY.value = touch.y;
-      }
-    })
-    .onEnd((event, success) => {
-      'worklet';
-      if (success && active.value && accepted.value && insideCapsule(event.x, event.y, width, height)) {
-        scheduleOnRN(dispatch, { phase: 'commit', interactionId: interactionId.value, timestamp: Date.now() });
-      }
-    })
-    .onFinalize((_event, success) => {
+  const gesture = useMemo(() => {
+    const release = (success: boolean) => {
       'worklet';
       if (!active.value) return;
-      active.value = false;
-      const id = interactionId.value;
-      if (!success) scheduleOnRN(dispatch, { phase: 'cancel', interactionId: id, timestamp: Date.now() });
+      active.value=false;
+      const id=interactionId.value;
+      if (!success) scheduleOnRN(dispatch,{phase:'cancel',interactionId:id,timestamp:Date.now()});
+      // A bounded sub-dp relaxation of the contact center, not translation of the button.
+      const kick=reduceMotion.value || Date.now()-lastMotionTime.value>LOCAL_GLASS.velocityExpiryMs ? 0 : LOCAL_GLASS.releaseKick;
+      releaseX.value=Math.max(-kick,Math.min(kick,velocityX.value*.0006));
+      releaseY.value=Math.max(-kick,Math.min(kick,velocityY.value*.0006));
+      releaseX.value=withTiming(0,{duration:100,reduceMotion:ReduceMotion.Never});
+      releaseY.value=withTiming(0,{duration:100,reduceMotion:ReduceMotion.Never});
+      velocityX.value=0;velocityY.value=0;
       cancelAnimation(pressure);
-      const complete = (finished?: boolean) => {
+      const complete=(finished?:boolean)=>{
         'worklet';
-        if (finished && id === interactionId.value && !active.value) {
-          pressure.value = 0; // exact rest, not an asymptotic residual
-          scheduleOnRN(dispatch, { phase: 'settled', interactionId: id, timestamp: Date.now() });
+        if(finished && id===interactionId.value && !active.value){
+          pressure.value=0;releaseX.value=0;releaseY.value=0;
+          scheduleOnRN(dispatch,{phase:'settled',interactionId:id,timestamp:Date.now()});
         }
       };
-      pressure.value = reduceMotion.value
-        ? withTiming(0, { duration: PRESS.reducedDuration, reduceMotion: ReduceMotion.Never }, complete)
-        : withSpring(0, { ...SPRINGS.settle, reduceMotion: ReduceMotion.Never }, complete);
-    }), [disabled, width, height, accepted, interactionId, contactX, contactY, active, pressure, reduceMotion, dispatch]);
+      pressure.value=reduceMotion.value
+        ? withTiming(0,{duration:PRESS.reducedDuration,reduceMotion:ReduceMotion.Never},complete)
+        : withSpring(0,{...SPRINGS.settle,reduceMotion:ReduceMotion.Never},complete);
+    };
+    return Gesture.Pan().enabled(!disabled).minDistance(0).maxPointers(1)
+      .shouldCancelWhenOutside(false)
+      .onBegin(event=>{
+        'worklet';
+        if(!accepted.value || event.numberOfPointers!==1 || !insideCapsule(event.x,event.y,width,height))return;
+        interactionId.value+=1;contactX.value=event.x;contactY.value=event.y;
+        releaseX.value=0;releaseY.value=0;velocityX.value=0;velocityY.value=0;lastMotionTime.value=Date.now();active.value=true;
+        cancelAnimation(pressure);
+        // A local depression is already present in the first submitted contact frame.
+        pressure.value=Math.max(LOCAL_GLASS.contactSeed,Math.min(1,pressure.value));
+        pressure.value=withTiming(1,{duration:reduceMotion.value ? PRESS.reducedDuration : LOCAL_GLASS.contactDuration,
+          easing:Easing.out(Easing.cubic),reduceMotion:ReduceMotion.Never});
+        scheduleOnRN(dispatch,{phase:'contact',interactionId:interactionId.value,timestamp:Date.now()});
+      })
+      .onTouchesDown((event,manager)=>{
+        'worklet'; const t=event.allTouches[0];
+        if(event.numberOfTouches!==1 || !accepted.value || !t || !insideCapsule(t.x,t.y,width,height)){
+          release(false);manager.fail();
+        }
+      })
+      .onTouchesMove((event,manager)=>{
+        'worklet'; const t=event.allTouches[0];
+        if(event.numberOfTouches!==1 || !accepted.value || !t || !insideCapsule(t.x,t.y,width,height)){
+          release(false);manager.fail();return;
+        }
+        // onUpdate is the single coordinate writer; this handler only owns cancellation.
+      })
+      .onUpdate(event=>{
+        'worklet';
+        if(!active.value || !accepted.value)return;
+        if(!insideCapsule(event.x,event.y,width,height)){release(false);return;}
+        contactX.value=event.x;contactY.value=event.y;
+        lastMotionTime.value=Date.now();
+        const vmax=LOCAL_GLASS.maxVelocity;
+        velocityX.value=Math.max(-vmax,Math.min(vmax,event.velocityX));
+        velocityY.value=Math.max(-vmax,Math.min(vmax,event.velocityY));
+        // No per-input velocity animation. Release rejects stale velocity after 80ms.
+      })
+      .onEnd((event,success)=>{
+        'worklet';
+        if(success && active.value && accepted.value && insideCapsule(event.x,event.y,width,height)){
+          scheduleOnRN(dispatch,{phase:'commit',interactionId:interactionId.value,timestamp:Date.now()});
+        }
+      })
+      .onFinalize((_event,success)=>{ 'worklet';release(success); });
+  },[disabled,width,height,accepted,interactionId,contactX,contactY,active,pressure,reduceMotion,dispatch,
+    velocityX,velocityY,releaseX,releaseY,lastMotionTime]);
 
-  const transform = useAnimatedStyle(() => {
-    const pose = rigidPose(pressure.value, reduceMotion.value, intensity);
-    return { transform: [{ translateY: pose.y }, { scale: pose.scale }] };
-  });
-  const physics = useMemo<LiquidPhysics>(() => ({ pressure, contactX, contactY, reduceMotion, width, height, intensity }),
-    [pressure, contactX, contactY, reduceMotion, width, height, intensity]);
+  const physics = useMemo<LiquidPhysics>(() => ({ pressure, contactX, contactY, velocityX, velocityY,
+    releaseX, releaseY, active, reduceMotion, width, height, intensity }),
+    [pressure,contactX,contactY,velocityX,velocityY,releaseX,releaseY,active,reduceMotion,width,height,intensity]);
 
   // Screen readers have no contact point. Activate once, with commit feedback only;
   // do not synthesize a touch ripple/pulse or a delayed business action.
@@ -180,10 +195,10 @@ export function LiquidPressable({ width, height, style, label, onPress, disabled
       accessibilityActions={Platform.OS === 'android' ? [{ name: 'activate', label }] : undefined}
       onAccessibilityAction={Platform.OS === 'android' ? event => { if (event.nativeEvent.actionName === 'activate') accessibleActivate(); } : undefined}
       style={[{ width, height, borderRadius: height/2 }, style, { opacity: disabled ? PRESS.disabledOpacity : 1 }]}>
-      <Animated.View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
-        style={[StyleSheet.absoluteFill, transform]}>
+      <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
+        style={StyleSheet.absoluteFill}>
         {children(physics)}
-      </Animated.View>
+      </View>
     </View>
   </GestureDetector>;
 }

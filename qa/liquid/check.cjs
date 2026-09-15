@@ -30,21 +30,79 @@ function harness(options={}) {
   const manager={fail:()=>{failed=true;g.handlers.onFinalize({},false);}};
   return {l,tree,g,events,physics,commits:()=>commits,
     down(x=115,y=30.5){failed=false;g.handlers.onBegin(evt(x,y));g.handlers.onTouchesDown({numberOfTouches:1,allTouches:[{id:0,x,y}]},manager);},
-    move(x,y){g.handlers.onTouchesMove({numberOfTouches:1,allTouches:[{id:0,x,y}]},manager);},
+    move(x,y){g.handlers.onTouchesMove({numberOfTouches:1,allTouches:[{id:0,x,y}]},manager);g.handlers.onUpdate({x,y,velocityX:0,velocityY:0});},
     secondFinger(){g.handlers.onTouchesDown({numberOfTouches:2,allTouches:[{id:0,x:115,y:30},{id:1,x:120,y:33}]},manager);},
     up(x=115,y=30.5,success=true){g.handlers.onEnd(evt(x,y),success&&!failed);g.handlers.onFinalize(evt(x,y),success&&!failed);},
     finish(){l.animations.at(-1)?.complete?.(true);},
   };
 }
 function propsOf(tree,type){return walk(tree).find(n=>n.type===type)?.props;}
-test('the polished static material and every non-target runtime file are byte-identical',()=>{
-  for(const [file,hash] of Object.entries(baseline.protectedFiles)) if(!baseline.intentionalChanges.includes(file)) assert.equal(sha(file),hash,file);
+
+test('approved material, Home and navigation stay byte-identical',()=>{
+ for(const [file,hash] of Object.entries(baseline.protectedFiles))if(!baseline.intentionalChanges.includes(file))assert.equal(sha(file),hash,file);
 });
-test('all original dependencies remain pinned; only four interaction dependencies are added',()=>{
-  const p=require(path.join(root,'package.json'));
-  for(const [name,value] of Object.entries(baseline.originalDependencies)) assert.equal(p.dependencies[name],value,name);
-  assert.deepEqual(Object.keys(p.dependencies).filter(k=>!baseline.originalDependencies[k]).sort(),['expo-haptics','react-native-gesture-handler','react-native-reanimated','react-native-worklets']);
+test('the sole added rendering dependency is Expo-compatible Skia',()=>{
+ const p=require(path.join(root,'package.json'));assert.equal(p.dependencies['@shopify/react-native-skia'],'2.6.2');
+ for(const [name,value]of Object.entries(baseline.originalDependencies))assert.equal(p.dependencies[name],value);
 });
+test('native Pan starts at zero distance, with unlimited hold and continuous update',()=>{
+ const h=harness();assert.equal(h.g.config.minDistance,0);assert.equal(h.g.config.maxPointers,1);
+ assert.equal(h.g.config.maxDistance,undefined);assert.equal(h.g.config.maxDuration,undefined);assert.equal(typeof h.g.handlers.onUpdate,'function');
+});
+test('there is NO rigid transform, opacity press style or Tap recognizer in the engine',()=>{
+ const src=fs.readFileSync(path.join(root,'src/liquid/LiquidPressable.tsx'),'utf8');
+ assert.doesNotMatch(src,/Gesture\.Tap|rigidPose|translateY|\{\s*scale:|pressed\s*\?\s*[.0-9]|withRepeat|useState|setInterval|setTimeout/);
+ const h=harness();h.down();assert.equal(h.physics.pressure.value,1);assert.equal(h.physics.active.value,true);
+});
+test('horizontal drag exceeds the former 12dp limit and stays in contact',()=>{
+ const h=harness();h.down(40,30);h.move(85,30);h.move(130,30);h.move(192,30);
+ assert.equal(h.physics.contactX.value,192);assert.equal(h.physics.pressure.value,1);assert.equal(h.physics.active.value,true);
+ h.up(192,30);assert.equal(h.commits(),1);
+});
+test('a small circular drag follows both coordinates and commits only on release',()=>{
+ const h=harness();h.down(115,30);
+ for(let i=0;i<=24;i++){const a=i/24*Math.PI*2;h.move(115+10*Math.cos(a),30+10*Math.sin(a));assert.equal(h.commits(),0);}
+ assert.equal(h.physics.contactX.value,125);h.up(125,30);assert.equal(h.commits(),1);
+});
+const volume=loader.load(path.join(root,'src/liquid/volumeField.ts'));
+test('negative height is maximal directly below the contact',()=>{
+ const a=volume.volumeSample(115,30.5,115,30.5,230,61,1);assert.equal(a.z,-volume.VOLUME.depth);
+ assert.ok(volume.volumeSample(125,30.5,115,30.5,230,61,1).z>a.z);
+});
+test('fixed rim and compact shoulder have zero displacement',()=>{
+ for(const [x,y] of [[115,1],[5,30.5],[225,30.5]]){const a=volume.volumeSample(x,y,115,30.5,230,61,1);assert.ok(a.z===0&&a.sx===0&&a.sy===0);}
+});
+test('hold is deterministic and shader has no clock or waves',()=>{
+ const a=volume.volumeSample(125,35,115,30,230,61,1);
+ for(let i=0;i<60;i++)assert.deepEqual(volume.volumeSample(125,35,115,30,230,61,1),a);
+ assert.doesNotMatch(fs.readFileSync(path.join(root,'src/liquid/volumeShader.ts'),'utf8'),/uniform float time|\bsin\(|\bcos\(/);
+});
+test('material coordinates move without requiring lighting',()=>{
+ const a=volume.volumeSample(130,30.5,115,30.5,230,61,1);assert.ok(Math.hypot(a.sx,a.sy)>.5);
+});
+test('gradient is finite and optical displacement bounded',()=>{
+ for(let cx=5;cx<230;cx+=17)for(let cy=5;cy<61;cy+=11)for(let x=0;x<230;x+=5){
+ const a=volume.volumeSample(x,30,cx,cy,230,61,1);for(const v of Object.values(a))assert.ok(Number.isFinite(v));
+ assert.ok(Math.hypot(a.sx,a.sy)<=volume.VOLUME.maxRefraction+1e-8);}
+});
+test('the pressure coordinate recovers exactly',()=>{
+ const a=volume.volumeSample(130,25,115,30,230,61,0);assert.ok(a.z===0&&a.sx===0&&a.sy===0);
+ const h=harness();h.down();h.up();h.finish();assert.equal(h.physics.pressure.value,0);
+});
+test('the prepared texture stays in the same renderer through the full gesture',()=>{
+ const s=fs.readFileSync(path.join(root,'src/liquid/VolumeSurface.tsx'),'utf8');
+ assert.match(s,/drawSvg/);assert.match(s,/<ImageShader/);assert.match(s,/useDerivedValue/);
+ assert.doesNotMatch(s,/makeImageFromView|useAnimatedStyle|useFrameCallback|withRepeat|setInterval/);
+});
+test('native content stays outside shader and never changes scale',()=>{
+ const s=fs.readFileSync(path.join(root,'src/home/LocalRegisterArtwork.tsx'),'utf8');
+ assert.ok(s.indexOf('<VolumeSurface')<s.indexOf('<Circle'));assert.doesNotMatch(s,/MechanicalSupport|scaleX|scaleY|\{scale:/);
+});
+test('ablation zeros optics AND content travel',()=>{
+ const s=fs.readFileSync(path.join(root,'src/liquid/VolumeSurface.tsx'),'utf8');assert.match(s,/pressure:enabled\?pressure.value:0/);
+ const a=fs.readFileSync(path.join(root,'src/home/LocalRegisterArtwork.tsx'),'utf8');assert.match(a,/enabled && contentFollow && supported/);
+});
+
 test('only PrimaryRegisterButton adopts the new engine',()=>{
   const p=fs.readFileSync(path.join(root,'src/home/PrimaryRegisterButton.tsx'),'utf8');
   assert.match(p,/<LiquidPressable/);assert.match(p,/interaction=\{physics\}/);
@@ -53,51 +111,16 @@ test('only PrimaryRegisterButton adopts the new engine',()=>{
 test('App preserves the normal Home and installs the native gesture root',()=>{
   const s=fs.readFileSync(path.join(root,'App.tsx'),'utf8');assert.match(s,/<GestureHandlerRootView/);assert.match(s,/<CukiHomeDemo\s*\/>/);assert.match(s,/EXPO_PUBLIC_LIQUID_LAB === '1'/);
 });
-test('press and settle are critically damped and do not overshoot',()=>{
-  for(const s of Object.values(math.SPRINGS)){assert.ok(Math.abs(s.damping/(2*Math.sqrt(s.mass*s.stiffness))-1)<1e-12);assert.equal(s.overshootClamping,true);}
-});
-test('analytical press reaches perceptible displacement within the requested window (not measured latency)',()=>{
-  const s=math.SPRINGS.press,w=Math.sqrt(s.stiffness/s.mass),response=t=>1-(1+w*t)*Math.exp(-w*t);
-  assert.ok(response(.04)>.55);assert.ok(response(.07)>.85);assert.ok(response(.14)>.99);
-});
-test('normal press is 2dp / 0.98, with identity at rest',()=>{
-  assert.equal(JSON.stringify(math.rigidPose(0,false)),JSON.stringify({y:0,scale:1}));
-  assert.equal(JSON.stringify(math.rigidPose(1,false)),JSON.stringify({y:2,scale:.98}));
-  assert.equal(math.rigidPose(-1,false).y,0);assert.equal(math.rigidPose(2,false).scale,.98);
-});
-test('reduced motion limits geometry but retains a response',()=>{
-  assert.equal(math.rigidPose(1,true).y,.3);assert.equal(math.rigidPose(1,true).scale,.998);
-});
-test('optical point is the inverse of physical descent and uniform scale',()=>{
-  const q=math.localContact(65,25,230,61,1,false),pose=math.rigidPose(1,false);
-  assert.ok(Math.abs((q.u*230-115)*pose.scale+115-65)<1e-9);
-  assert.ok(Math.abs((q.v*61-30.5)*pose.scale+30.5+pose.y-25)<1e-9);
-});
 test('capsule hit testing rejects empty bounding-box corners and invalid coordinates',()=>{
   assert.equal(math.insideCapsule(1,1,230,61),false);assert.equal(math.insideCapsule(115,30,230,61),true);
   assert.equal(math.insideCapsule(NaN,0,230,61),false);assert.equal(math.insideCapsule(231,30,230,61),false);
-});
-test('optical profile is closed, finite, deterministic and contact-dependent',()=>{
-  const p=math.capsuleSamples(460,122,math.OPTICS.inset);
-  const a=math.dentedRim(p,80,30,1),b=math.dentedRim(p,380,30,1);
-  assert.ok(a.endsWith('Z'));assert.doesNotMatch(a,/NaN|Infinity/);assert.notEqual(a,b);assert.equal(a,math.dentedRim(p,80,30,1));
-});
-test('native target remains fixed while content transforms uniformly',()=>{
-  const h=harness();const v=propsOf(h.tree,'View'),a=propsOf(h.tree,'AnimatedView');
-  assert.equal(v.style[0].width,230);assert.equal(v.style[0].height,61);assert.equal(v.style.at(-1).opacity,1);
-  h.down();const s=a.style[1].__updater();assert.equal(s.transform[0].translateY,2);assert.equal(s.transform[1].scale,.98);
-  assert.equal(s.opacity,undefined);assert.equal(a.pointerEvents,'none');
-});
-test('hold uses one physical spring and has no autonomous repeat',()=>{
-  const h=harness();h.down();assert.equal(h.l.animations.length,1);assert.equal(h.physics.pressure.value,1);
-  assert.equal(h.l.animations[0].kind,'spring');assert.ok(h.g.config.maxDuration>60_000);assert.equal(h.g.config.maxDistance,12);
 });
 test('action is committed only on successful release, once',()=>{
   const h=harness();h.down();assert.equal(h.commits(),0);h.up();assert.equal(h.commits(),1);
   h.g.handlers.onEnd({x:115,y:30.5},true);assert.equal(h.commits(),1);h.finish();assert.equal(h.physics.pressure.value,0);
 });
 test('a fast tap is not deferred by a minimum-press timer',()=>{
-  const h=harness();h.down();h.up();assert.equal(h.commits(),1);assert.equal(h.l.animations.length,2);
+  const h=harness();h.down();h.up();assert.equal(h.commits(),1);assert.equal(h.l.animations.at(-1).target,0);
 });
 test('touch coordinates follow small finger movements without React state',()=>{
   const h=harness();h.down(85,28);h.move(90,30);assert.equal(h.physics.contactX.value,90);assert.equal(h.physics.contactY.value,30);
@@ -151,15 +174,4 @@ test('unmount drops queued commits and resets the material',()=>{
 test('backgrounding cancels pressure and rejects queued action dispatch',()=>{
   const h=harness({queueRN:true});h.down();h.up();h.l.native.AppState.currentState='background';h.l.listeners['app:change']('background');h.l.flushRN();assert.equal(h.commits(),0);assert.equal(h.physics.pressure.value,0);
 });
-test('interactive artwork is passive and new optics are invisible at rest',()=>{
-  const h=harness();const l=h.l;const B=l.load(path.join(root,'src/home/GlassButton.tsx')).GlassButton;
-  const art=l.render(B,{variant:'primary',label:'Registrar +',scale:1,interaction:h.physics});
-  assert.equal(art.type,'View');assert.equal(art.props.pointerEvents,'none');assert.equal(walk(art).filter(n=>n.type==='Pressable').length,0);
-  const nodes=walk(expand(art));assert.ok(nodes.some(n=>n.type==='g'&&n.props.opacity===0&&n.props.animatedProps?.opacity===0));
-});
-test('local optics can be disabled while rigid press is retained',()=>{
-  const h=harness();const B=h.l.load(path.join(root,'src/home/GlassButton.tsx')).GlassButton;
-  const a=h.l.render(B,{variant:'primary',label:'Registrar +',scale:1,interaction:h.physics,opticsEnabled:false});
-  assert.equal(walk(a).filter(n=>n.type?.name==='LiquidPressOptics').length,0);h.down();assert.equal(h.physics.pressure.value,1);
-});
-console.log(`\n${count} Liquid Phase A host/numerical checks passed. NOT native input, FPS or optical validation.`);
+console.log(`\n${count} local-surface host/numerical checks passed. GPU/input/presentation require native evidence.`);

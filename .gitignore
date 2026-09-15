@@ -14,3 +14,6 @@ qa/home/output/
 # Generated native QA recordings/logs are Actions artifacts, not app assets.
 qa/liquid/native-output/
 qa/liquid/output/
+
+qa/liquid/.injector/
+__pycache__/

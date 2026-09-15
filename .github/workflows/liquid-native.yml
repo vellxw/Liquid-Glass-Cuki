@@ -1,10 +1,9 @@
-name: Liquid Phase A native Android
+name: Local Glass native drag Android
 on:
   pull_request:
     paths:
       - 'src/liquid/**'
-      - 'src/home/GlassButton.tsx'
-      - 'src/home/PrimaryRegisterButton.tsx'
+      - 'src/home/**'
       - 'examples/RegisterPhysicsLab.tsx'
       - 'App.tsx'
       - 'package.json'
@@ -35,12 +34,15 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
+          cores: 2
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash qa/liquid/android-smoke.sh
+          script: |
+            bash qa/liquid/android-smoke.sh
+            python qa/liquid/validate-locality.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: liquid-phase-a-native-android
+          name: local-glass-native-android
           path: qa/liquid/native-output/
           retention-days: 14
