@@ -8,6 +8,10 @@ BUILD=$(find "$SDK/build-tools" -name d8 | sort -V | tail -1)
 javac -source 8 -target 8 -cp "$PLATFORM" -d qa/liquid/.injector qa/liquid/InjectPath.java
 "$BUILD" --lib "$PLATFORM" --output qa/liquid/.injector/local-input.jar qa/liquid/.injector/InjectPath.class
 adb push qa/liquid/.injector/local-input.jar /data/local/tmp/local-input.jar
+# A common 720p Android viewport, preserving approximately the same logical dp size.
+# The raw recordings/metrics state this resolution; never compare FPS as if 1080p.
+adb shell wm size 720x1600
+adb shell wm density 280
 adb reverse tcp:8081 tcp:8081
 EXPO_NO_TELEMETRY=1 CI=1 EXPO_PUBLIC_LIQUID_LAB=1 npx expo start --go --android --localhost --port 8081 --clear > qa/liquid/native-output/metro.log 2>&1 &
 metro=$!
@@ -21,3 +25,4 @@ cleanup(){
 }
 trap cleanup EXIT
 python qa/liquid/android-smoke.py
+python qa/liquid/native-perf.py

@@ -13,7 +13,7 @@ const EFFECT=(()=>{
   return compiled;
 })();
 export type LocalGlassSurfaceProps={
-  physics:LiquidPhysics; children:ReactNode; enabled?:boolean; debug?:boolean;
+  physics:LiquidPhysics; children:ReactNode; rim?:ReactNode; enabled?:boolean; debug?:boolean;
   /** Invalidate when the backdrop/material changes. A capture is never made per drag frame. */
   revision?:unknown; onReady?:(ready:boolean)=>void;
 };
@@ -21,9 +21,10 @@ export type LocalGlassSurfaceProps={
  * is captured from that ACTUAL view at layout/rest. During contact only the material
  * is resampled by Skia. Text/icon siblings are never included in this texture.
  * No bundled UI bitmap, no reference crop, no encoding/decoding, no JS finger stream.
- * The captured backdrop is frozen during each contact; not a live arbitrary RN backdrop.
+ * The optical source is frozen per contact. Registrar keeps hardware BlurView beneath
+ * this layer: it is not a live refractor of arbitrary external RN backdrops.
  */
-export function LocalGlassSurface({physics,children,enabled=true,debug=false,revision,onReady}:LocalGlassSurfaceProps){
+export function LocalGlassSurface({physics,children,rim,enabled=true,debug=false,revision,onReady}:LocalGlassSurfaceProps){
   const source=useRef<View>(null);
   const [image,setImage]=useState<SkImage|null>(null);
   const alive=useRef(true), generation=useRef(0), busy=useRef(false);
@@ -52,6 +53,7 @@ export function LocalGlassSurface({physics,children,enabled=true,debug=false,rev
   });
   // Discrete backing-store substitution only. Opacity never represents pressure.
   const nativeBacking=useAnimatedStyle(()=>({opacity:enabled && image!==null && pressure.value!==0 ? 0:1}),[enabled,image]);
+  const nativeRim=useAnimatedStyle(()=>({opacity:enabled && image!==null && pressure.value!==0 ? 1:0}),[enabled,image]);
   const activeTexture=useDerivedValue(()=>enabled && image!==null && pressure.value!==0 ? 1:0,[enabled,image]);
   const uniforms=useDerivedValue(()=>({
     size:[width,height],touch:[contactX.value+releaseX.value,contactY.value+releaseY.value],
@@ -72,5 +74,6 @@ export function LocalGlassSurface({physics,children,enabled=true,debug=false,rev
         </Shader></Fill>
       </Group>
     </Canvas>}
+    {rim && <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill,nativeRim]}>{rim}</Animated.View>}
   </View>;
 }

@@ -20,7 +20,9 @@ half4 main(float2 p) {
   float edge=r-edgeLength;
   float2 d=p-touch;
   float distanceToTouch=length(d);
-  if(edge<=2.4 || distanceToTouch>radius*1.90) return material.eval(p);
+  // The outer rim is an unchanged native-vector sibling, never resampled.
+  if(edge<=2.4) return half4(0.0);
+  if(distanceToTouch>radius*1.90) return material.eval(p);
 
   // Analytic product derivative, instead of 5 expensive height evaluations.
   float2 stretch=1.0+min(abs(velocity)/1600.0,float2(1.0))*.025;

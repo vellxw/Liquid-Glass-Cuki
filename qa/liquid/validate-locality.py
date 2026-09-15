@@ -4,7 +4,7 @@ from pathlib import Path
 from PIL import Image
 out=Path('qa/liquid/native-output')
 b=json.loads((out/'bounds.json').read_text());box=tuple(b['button'])
-density=int(re.search(r'\d+',b['density']).group())/160
+density=int(re.findall(r'\d+',b['density'])[-1])/160
 r=Image.open(out/'rest.png').convert('RGB').crop(box)
 h=Image.open(out/'hold-1.png').convert('RGB').crop(box)
 w,height=r.size;radius=height/2;cx=w*.5

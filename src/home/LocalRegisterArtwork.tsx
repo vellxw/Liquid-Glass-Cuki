@@ -16,6 +16,13 @@ type Props={physics:LiquidPhysics;scale:number;label:string;fontFamily?:string;
 export function LocalRegisterArtwork({physics,scale,label,fontFamily,blurTarget,enabled=true,debug=false,proofGrid=false,onReady}:Props){
   const id=`local${useId().replace(/[^a-zA-Z0-9]/g,'')}`,s=PX*scale,w=460*s,h=122*s;
   const canBlur=Platform.OS!=='android'||!!blurTarget;
+  // Keep the original native-vector outer 2.4dp instead of resampling its antialiasing.
+  const inset=2.4/s, rr=61-inset;
+  const inner=`M61 ${inset}H399A${rr} ${rr} 0 0 1 399 ${122-inset}H61A${rr} ${rr} 0 0 1 61 ${inset}Z`;
+  const rim=<View style={{width:w,height:h,borderRadius:h/2,overflow:'hidden'}}><Svg width={w} height={h} viewBox="0 0 460 122">
+    <Defs><ClipPath id={`${id}-rim-clip`}><Path d={`M-1 -1H461V123H-1Z ${inner}`} clipRule="evenodd" fillRule="evenodd"/></ClipPath></Defs>
+    <G clipPath={`url(#${id}-rim-clip)`}><RegisterButtonMaterial id={`${id}-fixed-rim`}/></G>
+  </Svg></View>;
   let grid='';
   if(proofGrid){
     for(let x=12;x<460;x+=22)grid+=`M${x} 7V115`;
@@ -27,12 +34,12 @@ export function LocalRegisterArtwork({physics,scale,label,fontFamily,blurTarget,
         blurMethod={Platform.OS==='android'?'dimezisBlurViewSdk31Plus':'none'}
         style={[StyleSheet.absoluteFill,{opacity:GLASS.blurOpacity}]} />
     </View>}
-    <LocalGlassSurface physics={physics} enabled={enabled} debug={debug} revision={proofGrid} onReady={onReady}>
+    <LocalGlassSurface physics={physics} rim={rim} enabled={enabled} debug={debug} revision={proofGrid} onReady={onReady}>
       <View style={[StyleSheet.absoluteFill,{borderRadius:h/2,overflow:'hidden'}]}>
         <Svg width={w} height={h} viewBox="0 0 460 122">
           <RegisterButtonMaterial id={`${id}-material`} />
           {proofGrid && <>
-            <Defs><ClipPath id={`${id}-proof-clip`}><Rect x="0" y="0" width="460" height="122" rx="61"/></ClipPath></Defs>
+            <Defs><ClipPath id={`${id}-proof-clip`}><Rect x="6" y="6" width="448" height="110" rx="55"/></ClipPath></Defs>
             <G clipPath={`url(#${id}-proof-clip)`}><Path d={grid} stroke="#ABBABD" strokeWidth=".8" opacity=".42" /></G>
           </>}
         </Svg>
