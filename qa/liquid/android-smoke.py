@@ -145,6 +145,19 @@ def run_path(name,events,shots=None):
 def switch(label):
     n=find(hierarchy(),label);assert n is not None,label;tap(n);time.sleep(.65)
 
+# Warm the native Skia pipeline with a CANCELLED contact before recording. The
+# first cold shader compilation/native SVG cache can otherwise occupy the first
+# recorded tap. This is explicitly a warmed interaction test, not startup latency.
+warm=OUT/'warmup-cancel.csv'
+warm.write_text('\n'.join(','.join(str(v) for v in e) for e in
+    path_events(linear(point(.5,.5),(x2+80,y),40),650,200,200))+'\n')
+adb('push',str(warm),'/data/local/tmp/local-input.csv')
+(OUT/'warmup-injected.log').write_bytes(adb('shell','CLASSPATH=/data/local/tmp/local-input.jar',
+    'app_process','/system/bin','InjectPath','/data/local/tmp/local-input.csv'))
+time.sleep(1.2)
+counter(0)
+capture('warmup-rest')
+
 # Android damage-based screenrecord contains actual native frames, not a synthesized tween.
 adb('shell','settings','put','system','show_touches','0')
 adb('shell','dumpsys','gfxinfo','host.exp.exponent','reset')
@@ -177,6 +190,8 @@ switch('Cuadrícula de refracción')
 switch('Deformación local');off_rest=capture('off-rest')
 off=run_path('H-deformation-OFF',path_events([point(.55,.5)]*2,2400),[(1.2,'off-hold')]);counter(8)
 switch('Deformación local')
+run_path('I-repeat-quick-tap',path_events([point(.44,.34)]*2,130));counter(9)
+run_path('J-repeat-quick-tap',path_events([point(.72,.45)]*2,150));counter(10)
 final=capture('final-rest')
 # Finish recording without waiting for its upper limit.
 adb('shell','pkill','-2','screenrecord');record.wait(timeout=10)
@@ -190,7 +205,8 @@ result={'native':'Expo Go / Android API35 / software GPU', 'button':box,
  'leftToRightMAE':mae(shots['drag-left'],shots['drag-right']),
  'gridRestToHoldMAE':mae(grid_rest,proof['grid-left']),
  'localOffRestToHoldMAE':mae(off_rest,off['off-hold']),
- 'cancelRestMAE':mae(rest,cancelled),'finalRestMAE':mae(rest,final),'commits':8,
+ 'cancelRestMAE':mae(rest,cancelled),'finalRestMAE':mae(rest,final),'commits':10,
+ 'warmup':'one cancelled native contact before screenrecord; not a cold-start latency test',
  'pointerInput':'continuous Android MotionEvent stream; no playback animation',
  'haptics':'physical sensation not testable on emulator', 'iOS':'not executed'}
 (OUT/'result.json').write_text(json.dumps(result,indent=2));print('LOCAL_RESULT',json.dumps(result),flush=True)
