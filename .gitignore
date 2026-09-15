@@ -1,0 +1,12 @@
+node_modules/
+.expo/
+dist/
+android/
+ios/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+qa/output/
+qa/home/output/
