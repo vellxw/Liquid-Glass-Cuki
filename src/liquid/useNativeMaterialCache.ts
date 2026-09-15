@@ -29,6 +29,7 @@ async function captureBackdrop(host:RefObject<View|null>,target:RefObject<View|n
   const [a,b]=await Promise.all([measure(host),measure(target)]);
   if(!a||!b)return null;
   const image=await makeImageFromView(target);
+  if(!image)return null;
   const sx=image.width()/b.width,sy=image.height()/b.height;
   const surface=Skia.Surface.Make(pixelWidth,pixelHeight);
   if(!surface)return null;
@@ -61,6 +62,7 @@ export function useNativeMaterialCache(physics:LiquidPhysics,target?:RefObject<V
       requestAnimationFrame(()=>requestAnimationFrame(()=>{
         if(!alive.current||!source.current)return;
         makeImageFromView(source).then(async material=>{
+          if(!material)throw new Error('Native material snapshot returned no image');
           let backdrop:SkImage|null=null;
           try{backdrop=await captureBackdrop(host,target,material.width(),material.height());}
           catch(error){console.warn('[volume-backdrop]',String(error));}
