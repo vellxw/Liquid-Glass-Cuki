@@ -1,7 +1,8 @@
-/** One persistent rendering path in REST, CONTACT, HOLD and RELEASE.
- * No bitmap-view switching, no wave/time uniform and no global shape transform.
- * A negative local height is added to a resting bevel. The same differential drives
- * geometry projection, texture refraction and lighting against the original normal.
+/** Native artwork stays mounted and unchanged at all times. Skia contributes only
+ * the signed optical difference caused by the local negative-height field.
+ * Zero pressure or zero local support yields a truly transparent pixel, not a
+ * resampled approximation of the approved native resting material.
+ * This is per-pixel compositing of refracted coordinates, NOT a pressed opacity.
  */
 export const VOLUME_SKSL = `
 uniform shader material;
@@ -20,20 +21,29 @@ float spec(float3 n,float3 h){
   float v16=v8*v8; float v32=v16*v16; return v32*v32; // environmental lobe, exponent 64
 }
 half4 over(half4 a,half4 b){return a+b*(1.0-a.a);}
-half4 resting(float2 p){
-  half4 m=material.eval(p);
-  return proof==1.0?over(m,substrate.eval(p)):m;
+// Solve source-over so a cached baseline B becomes its deformed target D:
+// sourceRGB_premult = alpha*B + (D-B). Alpha is the minimum representable
+// coverage across channels, not a time/pressure fade. For D=B it is exactly zero.
+// A changing external native backdrop is still an approximation: B is captured.
+half4 opticalDifference(half3 before,half3 after){
+  float3 b=clamp(float3(before),0.0,1.0);
+  float3 d=clamp(float3(after),0.0,1.0)-b;
+  float3 room=mix(b,float3(1.0)-b,step(float3(0.0),d));
+  float3 coverage=abs(d)/max(room,float3(.00001));
+  float alpha=clamp(max(coverage.r,max(coverage.g,coverage.b)),0.0,1.0);
+  if(alpha<=.000001) return half4(0.0);
+  return half4(half3(clamp(alpha*b+d,float3(0.0),float3(alpha))),half(alpha));
 }
 half4 main(float2 p){
-  if(pressure==0.0) return resting(p);
+  if(pressure==0.0) return half4(0.0);
   float rr=size.y*.5;
   float2 ev=p-float2(clamp(p.x,rr,size.x-rr),rr);
   float el=length(ev),edge=rr-el;
   // The silhouette/outermost rim are the SAME pixels in every interaction state.
-  if(edge<=2.4) return resting(p);
+  if(edge<=2.4) return half4(0.0);
   float2 d=p-touch;
   float q=dot(d,d)/(radius*radius);
-  if(q>=2.25) return resting(p);
+  if(q>=2.25) return half4(0.0);
 
   float a=max(0.0,1.0-q),b=max(0.0,1.0-q/2.25);
   float k=.65*a*a*a+.35*b*b*b;
@@ -72,15 +82,16 @@ half4 main(float2 p){
     rgb=mix(rgb,float3(.3,.85,.65),mark*.7);
   }
   half4 deformed=half4(half3(clamp(rgb,0.0,1.0)*alpha),face.a);
-  // Controlled underlay is a distinct layer genuinely sampled through the lens.
-  if(proof==1.0) return over(deformed,substrate.eval(sampleAt));
-  if(proof==2.0){
-    // Native underlay is a captured layout-time source. Apply only its refracted
-    // color difference so REST and the native blur's baseline remain unchanged.
+  // Both reference layers are read from this instance's cache. The native SVG
+  // stays underneath; neither it nor the text is replaced by these cached pixels.
+  half4 background=substrate.eval(p);
+  half4 before=over(material.eval(p),background);
+  half4 after=over(deformed,background);
+  if(proof>0.0){
     half3 delta=substrate.eval(sampleAt).rgb-substrate.eval(p).rgb;
-    deformed.rgb=clamp(deformed.rgb+delta*(1.0-deformed.a),half3(0.0),half3(deformed.a));
+    after.rgb+=delta*(1.0-deformed.a);
   }
-  return deformed;
+  return opticalDifference(before.rgb,after.rgb);
 }
 `;
 /** Only a transparent fallback. A real controlled underlay is passed as ImageShader. */

@@ -14,9 +14,9 @@ export type VolumeSurfaceProps={
   /** Controlled live scene if supplied. Otherwise an optional native backdrop is copied at layout. */
   substrate?:SkImage|null; backdropTarget?:RefObject<View|null>; onReady?:(ready:boolean)=>void;
 };
-/** The SAME cache is rendered in REST, CONTACT and RELEASE. It is prepared from
- * this instance's native vector artwork, not a PNG asset or reference screenshot.
- * No pressure-dependent backing opacity, native/Skia swap or per-press snapshot.
+/** Native material is never replaced, even after cache preparation. The optical
+ * Canvas has one persistent path and contributes only a local signed difference.
+ * No pressure-dependent View opacity, per-press capture or React drag updates.
  */
 export function VolumeSurface({physics,children,enabled=true,lighting=true,debug=false,substrate,backdropTarget,onReady}:VolumeSurfaceProps){
   const {width,height,pressure,contactX,contactY,releaseX,releaseY,reduceMotion}=physics;
@@ -30,7 +30,11 @@ export function VolumeSurface({physics,children,enabled=true,lighting=true,debug
     radius:VOLUME.radius,lighting:lighting?1:0,proof:substrate?1:underlay?2:0,debug:debug?1:0,
   }),[width,height,enabled,lighting,debug,substrate,underlay,physics.intensity]);
   return <View ref={host} collapsable={false} pointerEvents="none" style={{width,height}}>
-    {!available && <View ref={source} collapsable={false} onLayout={prepare} style={StyleSheet.absoluteFill}>{children}</View>}
+    {substrate && <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <Fill><ImageShader image={substrate} fit="fill" rect={{x:0,y:0,width,height}} tx="clamp" ty="clamp"
+        sampling={{filter:FilterMode.Linear,mipmap:MipmapMode.None}}/></Fill>
+    </Canvas>}
+    <View ref={source} collapsable={false} onLayout={prepare} style={StyleSheet.absoluteFill}>{children}</View>
     {available && <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
       <Fill><Shader source={effect!} uniforms={uniforms}>
         <ImageShader image={image!} fit="fill" rect={{x:0,y:0,width,height}} tx="clamp" ty="clamp"
