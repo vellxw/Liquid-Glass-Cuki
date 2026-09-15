@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AppState, StyleSheet, View } from 'react-native';
-import { Canvas, Fill, Group, ImageShader, Shader, Skia, makeImageFromView, type SkImage } from '@shopify/react-native-skia';
+import { Canvas, Fill, Group, ImageShader, Shader, Skia, FilterMode, MipmapMode, makeImageFromView, type SkImage } from '@shopify/react-native-skia';
 import Animated, { useAnimatedReaction, useAnimatedStyle, useDerivedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { DEPRESSION_SKSL } from './depressionShader';
@@ -67,7 +67,8 @@ export function LocalGlassSurface({physics,children,enabled=true,debug=false,rev
     {image && <Canvas pointerEvents="none" style={StyleSheet.absoluteFill}>
       <Group opacity={activeTexture}>
         <Fill><Shader source={EFFECT} uniforms={uniforms}>
-          <ImageShader image={image} fit="fill" rect={{x:0,y:0,width,height}} tx="clamp" ty="clamp" />
+          <ImageShader image={image} fit="fill" rect={{x:0,y:0,width,height}} tx="clamp" ty="clamp"
+            sampling={{filter:FilterMode.Linear,mipmap:MipmapMode.None}} />
         </Shader></Fill>
       </Group>
     </Canvas>}

@@ -1,7 +1,7 @@
 import { useId, type RefObject } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { BlurView } from 'expo-blur';
-import Svg,{ Circle,Defs,G,LinearGradient,Path,Stop } from 'react-native-svg';
+import Svg,{ Circle,ClipPath,Defs,G,LinearGradient,Path,Rect,Stop } from 'react-native-svg';
 import { RegisterButtonMaterial } from './RegisterButtonMaterial';
 import { HomeIcon } from './HomeIcon';
 import { HomeText } from './HomeText';
@@ -22,14 +22,19 @@ export function LocalRegisterArtwork({physics,scale,label,fontFamily,blurTarget,
     for(let y=12;y<122;y+=22)grid+=`M7 ${y}H453`;
   }
   return <View pointerEvents="none" style={{width:w,height:h}}>
+    {canBlur && <View style={[StyleSheet.absoluteFill,{borderRadius:h/2,overflow:'hidden'}]}>
+      <BlurView intensity={GLASS.blur} tint="dark" blurTarget={blurTarget}
+        blurMethod={Platform.OS==='android'?'dimezisBlurViewSdk31Plus':'none'}
+        style={[StyleSheet.absoluteFill,{opacity:GLASS.blurOpacity}]} />
+    </View>}
     <LocalGlassSurface physics={physics} enabled={enabled} debug={debug} revision={proofGrid} onReady={onReady}>
       <View style={[StyleSheet.absoluteFill,{borderRadius:h/2,overflow:'hidden'}]}>
-        {canBlur && <BlurView intensity={GLASS.blur} tint="dark" blurTarget={blurTarget}
-          blurMethod={Platform.OS==='android'?'dimezisBlurViewSdk31Plus':'none'}
-          style={[StyleSheet.absoluteFill,{opacity:GLASS.blurOpacity}]} />}
         <Svg width={w} height={h} viewBox="0 0 460 122">
           <RegisterButtonMaterial id={`${id}-material`} />
-          {proofGrid && <Path d={grid} stroke="#ABBABD" strokeWidth=".8" opacity=".42" />}
+          {proofGrid && <>
+            <Defs><ClipPath id={`${id}-proof-clip`}><Rect x="0" y="0" width="460" height="122" rx="61"/></ClipPath></Defs>
+            <G clipPath={`url(#${id}-proof-clip)`}><Path d={grid} stroke="#ABBABD" strokeWidth=".8" opacity=".42" /></G>
+          </>}
         </Svg>
       </View>
     </LocalGlassSurface>

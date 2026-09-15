@@ -34,9 +34,12 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
+          cores: 4
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash qa/liquid/android-smoke.sh
+          script: |
+            bash qa/liquid/android-smoke.sh
+            python qa/liquid/validate-locality.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
