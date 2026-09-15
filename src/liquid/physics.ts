@@ -10,15 +10,15 @@ export const LOCAL_GLASS = {
   supportStart: 1.35,
   supportEnd: 1.85,
   derivativeStep: 0.35,
-  contactSeed: 0.14,
-  contactDuration: 95,
+  contactSeed: 0.25,
+  contactDuration: 86,
   velocitySettleMs: 80,
   maxVelocity: 1600,
   releaseKick: 0.6,
   reducedDepth: 0.28,
 } as const;
 export const SPRINGS = {
-  settle: { mass: 0.5, stiffness: 1150, damping: 43, overshootClamping: false, energyThreshold: 0.00001 },
+  settle: { mass: 0.4, stiffness: 1500, damping: 49, overshootClamping: false, energyThreshold: 0.00001 },
 } as const;
 export const PRESS = {
   reducedDuration: 55,

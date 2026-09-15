@@ -64,52 +64,43 @@ test('a small circular drag follows both coordinates and commits only on release
  for(let i=0;i<=24;i++){const a=i/24*Math.PI*2;h.move(115+10*Math.cos(a),30+10*Math.sin(a));assert.equal(h.commits(),0);}
  assert.equal(h.physics.contactX.value,125);h.up(125,30);assert.equal(h.commits(),1);
 });
-test('height is negative and maximal immediately under the finger',()=>{
- const c=math.LOCAL_GLASS;assert.equal(math.heightAt(115,30.5,115,30.5,230,61,1),-c.depth);
- assert.ok(math.heightAt(125,30.5,115,30.5,230,61,1)>-c.depth);
- assert.ok(math.heightAt(115,30.5,115,30.5,230,61,0)===0);
+const volume=loader.load(path.join(root,'src/liquid/volumeField.ts'));
+test('negative height is maximal directly below the contact',()=>{
+ const a=volume.volumeSample(115,30.5,115,30.5,230,61,1);assert.equal(a.z,-volume.VOLUME.depth);
+ assert.ok(volume.volumeSample(125,30.5,115,30.5,230,61,1).z>a.z);
 });
-test('the radial field has compact support and a pinned physical rim',()=>{
- assert.ok(math.heightAt(4,30,115,30,230,61,1)===0);
- assert.ok(math.heightAt(115,1,115,30,230,61,1)===0);
- assert.equal(math.heightAt(4,30,4,30,230,61,1),-math.LOCAL_GLASS.depth*math.smooth(2.4,9.4,math.rimDistance(4,30,230,61)));
+test('fixed rim and compact shoulder have zero displacement',()=>{
+ for(const [x,y] of [[115,1],[5,30.5],[225,30.5]]){const a=volume.volumeSample(x,y,115,30.5,230,61,1);assert.ok(a.z===0&&a.sx===0&&a.sy===0);}
 });
-test('hold is deterministic, with no time or ripple uniform',()=>{
- const a=math.localSample(125,35,115,30,230,61,1);
- for(let i=0;i<60;i++)assert.deepEqual(math.localSample(125,35,115,30,230,61,1),a);
- const s=fs.readFileSync(path.join(root,'src/liquid/depressionShader.ts'),'utf8');
- assert.doesNotMatch(s,/uniform float time|\bsin\(|\bcos\(/);
+test('hold is deterministic and shader has no clock or waves',()=>{
+ const a=volume.volumeSample(125,35,115,30,230,61,1);
+ for(let i=0;i<60;i++)assert.deepEqual(volume.volumeSample(125,35,115,30,230,61,1),a);
+ assert.doesNotMatch(fs.readFileSync(path.join(root,'src/liquid/volumeShader.ts'),'utf8'),/uniform float time|\bsin\(|\bcos\(/);
 });
-test('local texture sampling actually changes coordinates, not only brightness',()=>{
- const a=math.localSample(130,30.5,115,30.5,230,61,1);
- assert.ok(a.dx>0.2);assert.ok(Math.hypot(a.dx,a.dy)<=math.LOCAL_GLASS.maxRefraction);
- const b=math.localSample(15,30.5,115,30.5,230,61,1);assert.ok(b.dx===0 && b.dy===0);
+test('material coordinates move without requiring lighting',()=>{
+ const a=volume.volumeSample(130,30.5,115,30.5,230,61,1);assert.ok(Math.hypot(a.sx,a.sy)>.5);
 });
-test('slopes and refraction remain finite across all contact positions',()=>{
+test('gradient is finite and optical displacement bounded',()=>{
  for(let cx=5;cx<230;cx+=17)for(let cy=5;cy<61;cy+=11)for(let x=0;x<230;x+=5){
-  const a=math.localSample(x,30,cx,cy,230,61,1);for(const v of Object.values(a))assert.ok(Number.isFinite(v));
-  assert.ok(Math.hypot(a.dx,a.dy)<=3.6000001);
- }
+ const a=volume.volumeSample(x,30,cx,cy,230,61,1);for(const v of Object.values(a))assert.ok(Number.isFinite(v));
+ assert.ok(Math.hypot(a.sx,a.sy)<=volume.VOLUME.maxRefraction+1e-8);}
 });
-test('rest is exactly undeformed; spring returns the same one-dimensional height field',()=>{
- const a=math.localSample(130,25,115,30,230,61,0);assert.ok(a.z===0 && a.dx===0 && a.dy===0);
- const h=harness();h.down();h.up();h.finish();assert.equal(h.physics.pressure.value,0);assert.equal(h.physics.active.value,false);
+test('the pressure coordinate recovers exactly',()=>{
+ const a=volume.volumeSample(130,25,115,30,230,61,0);assert.ok(a.z===0&&a.sx===0&&a.sy===0);
+ const h=harness();h.down();h.up();h.finish();assert.equal(h.physics.pressure.value,0);
 });
-test('shader and native backing switch ONLY between representations, not press brightness',()=>{
- const s=fs.readFileSync(path.join(root,'src/liquid/LocalGlassSurface.tsx'),'utf8');
- assert.match(s,/makeImageFromView/);assert.match(s,/<ImageShader/);assert.match(s,/useDerivedValue/);assert.match(s,/useFrameCallback/);
- assert.doesNotMatch(s,/withRepeat|setInterval/);assert.match(s,/frame.value.pressure!==0\?0:1/);
+test('there is one persistent material renderer, no view capture or backing switch',()=>{
+ const s=fs.readFileSync(path.join(root,'src/liquid/VolumeSurface.tsx'),'utf8');
+ assert.match(s,/drawSvg/);assert.match(s,/<ImageShader/);assert.match(s,/useDerivedValue/);
+ assert.doesNotMatch(s,/makeImageFromView|useAnimatedStyle|useFrameCallback|withRepeat|setInterval/);
 });
-test('native text and circle are outside the refracted subtree',()=>{
+test('native content stays outside shader and never changes scale',()=>{
  const s=fs.readFileSync(path.join(root,'src/home/LocalRegisterArtwork.tsx'),'utf8');
- assert.ok(s.indexOf('</LocalGlassSurface>')<s.indexOf('<Circle'));
- assert.ok(s.indexOf('</LocalGlassSurface>')<s.indexOf('<HomeText'));
- assert.doesNotMatch(s,/Animated|transform:|scaleX|scaleY/);
+ assert.ok(s.indexOf('<VolumeSurface')<s.indexOf('<Circle'));assert.doesNotMatch(s,/MechanicalSupport|scaleX|scaleY|\{scale:/);
 });
-test('ablation removes the entire local effect and exposes the untouched native material',()=>{
- const s=fs.readFileSync(path.join(root,'src/liquid/LocalGlassSurface.tsx'),'utf8');
- assert.match(s,/pressure:available\?frame.value.pressure:0/);
- const h=harness();assert.equal(walk(h.tree).some(n=>n.props?.style?.transform),false);
+test('ablation zeros optics AND content travel',()=>{
+ const s=fs.readFileSync(path.join(root,'src/liquid/VolumeSurface.tsx'),'utf8');assert.match(s,/pressure:enabled\?pressure.value:0/);
+ const a=fs.readFileSync(path.join(root,'src/home/LocalRegisterArtwork.tsx'),'utf8');assert.match(a,/enabled && mechanicalSupport && supported/);
 });
 
 test('only PrimaryRegisterButton adopts the new engine',()=>{

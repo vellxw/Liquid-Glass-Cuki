@@ -13,14 +13,14 @@ export type GlassButtonProps = {
   interaction?: LiquidPhysics;
   /** Ablation: disables ALL visual pressure response, never leaves a rigid tap behind. */
   opticsEnabled?: boolean;
-  mechanicalSupport?: boolean; debug?: boolean; proofGrid?: boolean; onSurfaceReady?: (ready: boolean) => void;
+  mechanicalSupport?: boolean; lighting?: boolean; debug?: boolean; proofGrid?: boolean; onSurfaceReady?: (ready: boolean) => void;
   variant: 'primary' | 'secondary'; label: string; scale: number;
   onPress?: () => void; disabled?: boolean; fontFamily?: string;
   blurTarget?: RefObject<View | null>; style?: StyleProp<ViewStyle>; testID?: string;
 };
 /** Separate from the original navigation material: no changes to bottom-nav sources. */
 export function GlassButton({ variant, label, scale, onPress, disabled = false,
-  fontFamily, blurTarget, style, testID, interaction, opticsEnabled = true, debug = false, proofGrid = false, mechanicalSupport = false, onSurfaceReady }: GlassButtonProps) {
+  fontFamily, blurTarget, style, testID, interaction, opticsEnabled = true, debug = false, proofGrid = false, mechanicalSupport = true, lighting = true, onSurfaceReady }: GlassButtonProps) {
   const primary = variant === 'primary', w = primary ? 460 : 297, h = primary ? 122 : 79;
   const s = PX * scale, radius = h * s / 2;
   const id = `button${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
@@ -28,7 +28,7 @@ export function GlassButton({ variant, label, scale, onPress, disabled = false,
   const canBlur = Platform.OS !== 'android' || !!blurTarget;
   if(primary && interaction) return <LocalRegisterArtwork physics={interaction} scale={scale}
     label={label} fontFamily={fontFamily} blurTarget={blurTarget} enabled={opticsEnabled}
-    debug={debug} proofGrid={proofGrid} mechanicalSupport={mechanicalSupport} onReady={onSurfaceReady}/>;
+    debug={debug} proofGrid={proofGrid} mechanicalSupport={mechanicalSupport} lighting={lighting} onReady={onSurfaceReady}/>;
   const artwork = <>
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: radius }]}>
       {canBlur && <BlurView intensity={GLASS.blur} tint="dark" blurTarget={blurTarget}

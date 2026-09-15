@@ -145,24 +145,16 @@ def run_path(name,events,shots=None):
 def switch(label):
     n=find(hierarchy(),label);assert n is not None,label;tap(n);time.sleep(.65)
 
-# Warm the native Skia pipeline with a CANCELLED contact before recording. The
-# first cold shader compilation/native SVG cache can otherwise occupy the first
-# recorded tap. This is explicitly a warmed interaction test, not startup latency.
-warm=OUT/'warmup-cancel.csv'
-warm.write_text('\n'.join(','.join(str(v) for v in e) for e in
-    path_events(linear(point(.5,.5),(x2+80,y),40),650,200,200))+'\n')
-adb('push',str(warm),'/data/local/tmp/local-input.csv')
-(OUT/'warmup-injected.log').write_bytes(adb('shell','CLASSPATH=/data/local/tmp/local-input.jar',
-    'app_process','/system/bin','InjectPath','/data/local/tmp/local-input.csv'))
-time.sleep(1.2)
-counter(0)
-capture('warmup-rest')
+# Compare the same button rectangle with its original native SVG before recording.
+switch('Referencia estática');original=capture('original-svg-rest')
+switch('Referencia estática');time.sleep(.5)
+# Persistent renderer is already visible in REST. No discarded warmup contact.
 
 # Android damage-based screenrecord contains actual native frames, not a synthesized tween.
 adb('shell','settings','put','system','show_touches','0')
 adb('shell','dumpsys','gfxinfo','host.exp.exponent','reset')
 adb('shell','dumpsys','SurfaceFlinger','--timestats','-clear','-enable')
-record=sp.Popen(['adb','shell','screenrecord','--bit-rate','6000000','--time-limit','120','/sdcard/local-glass.mp4'])
+record=sp.Popen(['adb','shell','screenrecord','--bit-rate','6000000','--time-limit','180','/sdcard/local-glass.mp4'])
 video_origin=time.monotonic();stages=[]
 time.sleep(.8)
 rest=capture('rest')
@@ -193,10 +185,18 @@ switch('Deformación local')
 run_path('I-repeat-quick-tap',path_events([point(.44,.34)]*2,130));counter(9)
 run_path('J-repeat-quick-tap',path_events([point(.72,.45)]*2,150));counter(10)
 final=capture('final-rest')
-switch('Apoyo mecánico')
-run_path('K-combined-press',path_events([point(.55,.45)]*2,2300),[(1.1,'combined-hold')]);counter(11)
-run_path('L-combined-drag',path_events(linear(point(.2,.4),point(.8,.4)),2200,300,300));counter(12)
-switch('Apoyo mecánico')
+switch('Iluminación de contacto');geometry_rest=capture('geometry-rest')
+geometry=run_path('K-geometry-without-lighting',path_events([point(.55,.45)]*2,2300),[(1.1,'geometry-hold')]);counter(11)
+switch('Iluminación de contacto')
+switch('Acompañamiento del contenido')
+run_path('L-material-alone-drag',path_events(linear(point(.2,.4),point(.8,.4)),2200,300,300));counter(12)
+switch('Acompañamiento del contenido')
+switch('Forzar movimiento reducido')
+run_path('M-reduced-motion',path_events([point(.55,.45)]*2,1100));counter(13)
+switch('Forzar movimiento reducido')
+switch('Deshabilitar Registrar')
+run_path('N-disabled',path_events([point(.55,.45)]*2,400));counter(13)
+switch('Deshabilitar Registrar')
 
 # Finish recording without waiting for its upper limit.
 adb('shell','pkill','-2','screenrecord');record.wait(timeout=10)
@@ -210,12 +210,14 @@ result={'native':'Expo Go / Android API35 / software GPU', 'button':box,
  'leftToRightMAE':mae(shots['drag-left'],shots['drag-right']),
  'gridRestToHoldMAE':mae(grid_rest,proof['grid-left']),
  'localOffRestToHoldMAE':mae(off_rest,off['off-hold']),
- 'cancelRestMAE':mae(rest,cancelled),'finalRestMAE':mae(rest,final),'commits':12,
- 'warmup':'one cancelled native contact before screenrecord; not a cold-start latency test',
+ 'cancelRestMAE':mae(rest,cancelled),'finalRestMAE':mae(rest,final),'commits':13,
+ 'originalRestMAE':mae(original,rest),'geometryOnlyMAE':mae(geometry_rest,geometry['geometry-hold']),
+ 'warmup':'none: first contact is recorded; renderer already draws in REST',
  'pointerInput':'continuous Android MotionEvent stream; no playback animation',
  'haptics':'physical sensation not testable on emulator', 'iOS':'not executed'}
 (OUT/'result.json').write_text(json.dumps(result,indent=2));print('LOCAL_RESULT',json.dumps(result),flush=True)
-assert result['restToHoldMAE']>.08,'No visible local pressure response'
+assert result['geometryOnlyMAE']>.15,'Pressure is only a lighting change'
+assert result['restToHoldMAE']>.7,'No visible local pressure response'
 assert result['leftToRightMAE']>.08,'Material did not follow the horizontal drag'
 assert stable<.4,'HOLD continues changing after reaching full pressure'
 assert result['restToSettledMAE']<.5,'REST did not recover exactly'
