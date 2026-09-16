@@ -39,10 +39,14 @@ final class NativeButtonUITests: XCTestCase {
     button.tap(); expect(1)
     button.press(forDuration: 1.3); expect(2); snapshot("02-release")
     let start = button.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-    // End outside the button, but inside the physical screen.
-    let end = app.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0))
-      .withOffset(CGVector(dx: -6, dy: button.frame.midY))
-    start.press(forDuration: 0.3, thenDragTo: end); expect(2)
+    // Move well beyond the system button's touch-retention region. A previous
+    // short horizontal exit was accepted by the system; it is retained in the
+    // failed-run evidence, not misreported as cancellation. Do not add a custom
+    // gesture recognizer just to override Apple's native interaction policy.
+    let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0))
+      .withOffset(CGVector(dx: button.frame.midX, dy: button.frame.maxY + 180))
+    start.press(forDuration: 0.15, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.6)
+    expect(2); snapshot("03-cancel-outside")
     app.switches["demo-disabled"].tap(); XCTAssertFalse(button.isEnabled); snapshot("03-disabled")
     app.switches["demo-disabled"].tap(); XCTAssertTrue(button.isEnabled)
     app.switches["demo-busy"].tap(); XCTAssertFalse(button.isEnabled); snapshot("04-busy")
