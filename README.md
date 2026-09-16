@@ -1,50 +1,40 @@
-# CUKI · Registrar, un botón
+# CUKI · Black Glass original, botón normal
 
-React Native + Expo SDK 57 + TypeScript. Registrar ya no tiene un motor de presión.
+Proyecto React Native + Expo SDK 57 + TypeScript. Registrar recupera el diseño
+Black Glass aprobado: el material vectorial, reflejos, círculo +, tipografía,
+proporciones y posiciones originales. La Home y la navbar no se rediseñan.
+
+## Interacción
+
+En iOS sigue siendo un `Button` real de SwiftUI mediante `@expo/ui`. Ahora utiliza
+`buttonStyle('plain')` y aloja el dibujo nativo original en `RNHostView`: el estilo
+`glass` del sistema ya no reemplaza la apariencia de CUKI. Plain conserva el label
+sin decoración propia en reposo y deja la interacción al control de Apple.
+
+En Android sigue siendo un Pressable ordinario con el mismo dibujo. Los estados
+normal, deshabilitado/ocupado y la acción de Registrar están separados del material.
+No hay deformación local, shaders, captura de texturas, gestos Pan ni springs propios.
+No se han reintroducido Skia, Reanimated, Worklets, Gesture Handler o Expo Haptics.
+
+La estética es el Black Glass original de CUKI, **no la superficie Liquid Glass
+propietaria del sistema operativo**. Se conserva la semántica nativa sin imponer
+el diseño visual del botón estándar de Apple. Texto e icono no son imágenes.
 
 ## Ejecutar
 
-Node >=22.13.0. Expo Go compatible con SDK 57.
+Node 22.13.0 o posterior y Expo Go compatible con SDK 57.
 
 ```bash
 npm install
 npx expo start --go --clear
 ```
 
-Desde un development build anterior, recompila: las dependencias nativas cambiaron.
-No se necesitan Skia, Reanimated, Worklets, Gesture Handler ni Expo Haptics.
+Sin variables adicionales se abre la Home. Demo de botón opcional: poner
+`EXPO_PUBLIC_BUTTON_DEMO=1` en `.env.local` y reiniciar Metro. Incluye una comparación
+con el dibujo original en la misma caja, además de contador, disabled y busy.
+La variable antigua `EXPO_PUBLIC_LIQUID_LAB` no activa ningún motor de presión.
 
-## Comportamiento
-
-- **iOS 26+:** `Button` real de SwiftUI, a través de `@expo/ui`, con `buttonStyle('glass')` y forma de cápsula. Apple controla el material y la respuesta al contacto. No se añade una segunda simulación encima.
-- **iOS anterior:** el mismo botón nativo con estilo `bordered`.
-- **Android:** `Pressable` normal de React Native sobre el Black Glass vectorial estático ya existente. Tiene estado pulsado, acción al soltar y cancelación nativa al hacer scroll. No es el material propietario de Apple.
-
-Tocar ejecuta la acción una vez. Mantener no la repite. Arrastrar no deforma el vidrio.
-Disabled y busy bloquean la acción y se exponen a accesibilidad. No hay delays de acción,
-compresión local, lentes, shaders propios, cachés de screenshots ni animaciones por frame.
-
-**El aspecto del botón en iOS es ahora el del sistema, no una réplica del SVG anterior.**
-La Home, su distribución, Ver rutina y los siete archivos de la navbar se conservan.
-El botón Registrar de la navegación inferior no se modifica.
-
-## Código
-
-- `src/buttons/RegisterActionButton.ios.tsx`: control SwiftUI de Apple.
-- `src/buttons/RegisterActionButton.tsx`: alternativa React Native estática.
-- `src/home/PrimaryRegisterButton.tsx`: integración en la Home.
-- `src/home/GlassButton.tsx`: vidrio estático compartido; ningún motor de interacción.
-
-Los antiguos motores, laboratorios de presión y benchmarks de shaders se eliminaron
-del árbol actual. Permanecen recuperables en el historial de Git; no se cargan al abrir CUKI.
-
-## Demo opcional
-
-Crea `.env.local` con `EXPO_PUBLIC_BUTTON_DEMO=1` y reinicia Metro. La demo tiene un contador,
-estados deshabilitado/ocupado y acceso a la Home. Sin la variable, la entrada sigue siendo la Home.
-La variable antigua `EXPO_PUBLIC_LIQUID_LAB` ya no activa nada.
-
-## Comprobaciones
+## Comprobar
 
 ```bash
 npm run typecheck
@@ -56,14 +46,15 @@ npm run export:android
 npm run export:ios
 ```
 
-Los tests del host no simulan UIKit/SwiftUI ni certifican FPS. Los workflows nativos
-conservan capturas y grabaciones sin sintetizar movimiento. No se promete una tasa de
-FPS sin medirla en el dispositivo correspondiente.
+64 comprobaciones del host: 17 de navbar, 23 de Home, 11 de material y 13 del botón.
+El dibujo se compara contra un fixture del componente anterior, en cuatro escalas
+y en ambas variantes. Son tests de fuente; no certifican una captura nativa.
+El protocolo XCTest verifica un botón nativo y guarda una comparación original/restaurado.
+`python qa/button/compare-ios.py <carpeta-de-screenshots-exportados>` compara los PNGs
+sin deformación, reescalado ni máscaras interiores.
 
-## Fuentes de la integración
+Las exportaciones JavaScript no equivalen a compilar un APK/IPA. Las pruebas de
+simulador tampoco certifican FPS o latencia táctil en un teléfono real.
 
-- Expo SDK 57 / SwiftUI Button: https://docs.expo.dev/versions/v57.0.0/sdk/ui/swift-ui/button/
-- Apple GlassButtonStyle: https://developer.apple.com/documentation/swiftui/glassbuttonstyle
-
-Los estilos glass requieren iOS 26+ y una compilación con Xcode 26+. El selector por
-versión usa bordered en iOS anterior. El sistema conserva sus preferencias de accesibilidad.
+Documento vigente: `docs/RESTORED-APPEARANCE.md`. `docs/NATIVE-BUTTON.md` conserva
+el informe histórico de la entrega con apariencia de sistema, sustituida ahora.
