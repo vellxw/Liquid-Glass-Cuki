@@ -25,7 +25,15 @@ def count(n):
  assert node.get('text')==f'Acciones: {n}',node.attrib
 for _ in range(55):
  time.sleep(3)
- root=tree()
+ try:
+  root=tree()
+ except (sp.SubprocessError, ET.ParseError):
+  # Boot/Expo install can temporarily have no accessibility root. Retry startup,
+  # never bypass an assertion once the actual demo is available.
+  continue
+ texts=' '.join(n.get('text','') for n in root.iter('node'))
+ if any(error in texts for error in ['Uncaught Error','TypeError:','ReferenceError:','Invariant Violation']):
+  shot('runtime-error');raise RuntimeError(texts[:2000])
  if find(root,'Go home') is not None and find(root,'Reload') is not None:
   close=find(root,'Close')
   if close is not None:tap(close)
