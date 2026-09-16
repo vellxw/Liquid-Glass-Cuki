@@ -27,4 +27,6 @@ cleanup(){
 trap cleanup EXIT
 python qa/liquid/android-smoke.py
 python qa/liquid/native-perf.py
+python qa/performance/run.py
 python qa/liquid/home-smoke.py
+python qa/performance/trace-report.py

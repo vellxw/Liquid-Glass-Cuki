@@ -8,6 +8,7 @@ import { HomeIcon } from './HomeIcon';
 import { HomeText } from './HomeText';
 import { GLASS,HOME_REFERENCE,PX } from './tokens';
 import { VolumeSurface,makeProofSubstrate } from '../liquid/VolumeSurface';
+import { useGlassPerformance } from '../liquid/performance';
 import { contentDepth } from '../liquid/volumeField';
 import type { LiquidPhysics } from '../liquid/types';
 
@@ -18,13 +19,14 @@ type Props={physics:LiquidPhysics;scale:number;label:string;fontFamily?:string;
  * The plus insert stays fixed in its original SVG compositing pass. Crisp text may follow .9dp. */
 export const LocalRegisterArtwork=memo(function LocalRegisterArtwork({physics,scale,label,fontFamily,blurTarget,enabled=true,
   debug=false,proofGrid=false,contentFollow=true,lighting=true,onReady}:Props){
+  const performance=useGlassPerformance();
   const id=`volume${useId().replace(/[^a-zA-Z0-9]/g,'')}`,s=PX*scale,w=460*s,h=122*s;
-  const canBlur=Platform.OS!=='android'||!!blurTarget;
+  const canBlur=performance.nativeBlur && (Platform.OS!=='android'||!!blurTarget);
   const [supported,setSupported]=useState(true);
   const ready=useCallback((value:boolean)=>{setSupported(value);onReady?.(value);},[onReady]);
   const substrate=useMemo(()=>proofGrid?makeProofSubstrate(w,h):null,[proofGrid,w,h]);
-  const labelStyle=useAnimatedStyle(()=>({transform:[{translateY:enabled && contentFollow && supported?
-    contentDepth(300*s,61*s,physics.contactX.value,physics.contactY.value,physics.pressure.value,physics.reduceMotion.value):0}]}),[enabled,contentFollow,supported,s]);
+  const labelStyle=useAnimatedStyle(()=>({transform:[{translateY:enabled && contentFollow && supported && performance.contentFollow?
+    contentDepth(300*s,61*s,physics.contactX.value,physics.contactY.value,physics.pressure.value,physics.reduceMotion.value):0}]}),[enabled,contentFollow,performance.contentFollow,supported,s]);
   return <View pointerEvents="none" style={{width:w,height:h}}>
     {canBlur && <View style={[StyleSheet.absoluteFill,{borderRadius:h/2,overflow:'hidden'}]}>
       <BlurView intensity={GLASS.blur} tint="dark" blurTarget={blurTarget}
@@ -46,8 +48,10 @@ export const LocalRegisterArtwork=memo(function LocalRegisterArtwork({physics,sc
       </View>
     </VolumeSurface>
     <Animated.View style={[StyleSheet.absoluteFill,labelStyle]}>
+      <View renderToHardwareTextureAndroid={performance.cacheArtwork} shouldRasterizeIOS={performance.cacheArtwork} style={StyleSheet.absoluteFill}>
       <HomeText x={193} baseline={HOME_REFERENCE.bodyTop+75} width={254} size={34}
         scale={scale} fontFamily={fontFamily}>{label}</HomeText>
+      </View>
     </Animated.View>
   </View>;
 });

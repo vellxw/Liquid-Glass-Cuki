@@ -13,29 +13,32 @@ npx expo start --go --clear
 ```
 
 Para el laboratorio de Registrar añade `EXPO_PUBLIC_LIQUID_LAB=1` a `.env.local`
-y reinicia Metro. Sin esa variable se abre la Home.
+y reinicia Metro. Desde el laboratorio puedes abrir la Home real y el banco A/B.
+Sin esa variable se abre la Home. Debug y cuadrícula están apagados por defecto.
 
-## Revisión actual: solo Registrar
+## Revisión actual: rendimiento medido, solo Registrar
 
-[CONTACT-PIPELINE.md](docs/CONTACT-PIPELINE.md) describe la revisión vigente.
-La presión local sigue al dedo mediante Pan, Reanimated y Skia. Los uniforms
-se consolidan una vez por frame UI; el shader trabaja en el área de contacto.
-No se usan capturas de la referencia ni animaciones prerenderizadas.
+[RENDER-PERFORMANCE.md](docs/RENDER-PERFORMANCE.md) documenta la implementación,
+los candidatos medidos, la prueba prolongada y sus límites.
 
-El último brief adjunto vuelve a proponer +2 dp y escala 0,98. Se implementan
-como apoyo mecánico **opcional**, separado del campo local. La Home combina
-ambos; el laboratorio comienza con la depresión sola y permite activar el
-apoyo. Las coordenadas ópticas se corrigen con la inversa de la pose.
+La presión local sigue al dedo mediante Pan, Reanimated y Skia. Se conserva el
+material SVG nativo y Skia compone solo la diferencia óptica local. El inserto +
+es rígido y no se refracta. No hay escala ni descenso global de la cápsula;
+únicamente el texto puede acompañar hasta 0,9 dp sin deformarse.
 
-Texto y círculo no se refractan. El resting state, los tokens visuales, Ver
-rutina y los siete archivos de la barra inferior se conservan. Desactivar la
-deformación en el laboratorio elimina también el apoyo mecánico.
+La variante optimizada limita el dibujo al soporte completo del contacto y evita
+cálculos/muestreos redundantes. No cambia resolución, radio, profundidad, luz ni
+spring. Usa las coordenadas directamente: el agrupamiento adicional por cuadro
+quedó como candidato de diagnóstico, no como modo de producción.
 
-**Límite:** se refracta la textura del material capturado en memoria, no el
-backdrop externo de React Native en vivo. El BlurView permanece separado.
-Las cifras de rendimiento y validación pertenecen a ejecuciones concretas;
-consulta la evidencia y los IDs enlazados en el PR. No se declara la Fase A
-aprobada ni se extiende a otros controles automáticamente.
+La comparación nativa intercalada dio una mediana de 36,713 FPS para baseline y
+41,659 FPS para optimized (+13,472 %) en el mismo emulador. **No acredita 60 FPS
+ni rendimiento de un teléfono físico.** La prueba utilizó un APK release x86_64
+independiente, sin Expo Go ni Metro. Los videos de entrega provienen de ese APK.
+
+El resultado aprobado, layout, Ver rutina, física y los siete archivos de navbar
+permanecen protegidos. No se fusiona automáticamente ni se extiende a otros controles.
+La refracción del fondo nativo usa una copia de layout, no un backdrop externo en vivo.
 
 ## Comprobar
 
@@ -44,31 +47,34 @@ npm run check
 npm run check:register
 npm run check:liquid
 node qa/liquid/pipeline-check.cjs
+node qa/liquid/overlay-check.cjs
+node qa/performance/check.cjs
+python -m unittest discover -s qa/performance -p 'test_*.py' -v
 npm run typecheck
 npx expo install --check
 npm run export:android
 npm run export:ios
 ```
 
-Hay 98 checks host/numéricos (40 base + 11 material + 35 contacto + 12 pipeline).
-No sustituyen una ejecución nativa. Las exportaciones comprueban JavaScript;
-no producen APK/IPA. Con los SDK locales, usa `npm run android` o `npm run ios`.
+Son 106 comprobaciones host/numéricas y 4 pruebas del parser; no sustituyen
+las pruebas nativas. Las exportaciones comprueban JavaScript, no generan APK/IPA.
+El workflow `performance-release.yml` sí compila un APK de prueba y ejecuta A/B,
+Perfetto, tres minutos de contactos repetidos y los videos nativos. Los parámetros
+y el entorno exactos están documentados; no se presentan como pruebas en hardware.
 
 ## Integración y assets
 
 `src/home/HomeScreen.tsx` es la pantalla; `src/home/` contiene sus módulos.
-`src/liquid/` separa input, campo óptico y apoyo mecánico.
-`examples/RegisterPhysicsLab.tsx` es el laboratorio; `examples/NavOnlyDemo.tsx`
-conserva la demo de navegación independiente.
+`src/liquid/` separa input, campo óptico, recursos y configuración de rendimiento.
+`examples/RegisterPhysicsLab.tsx` es el laboratorio; `GlassPerformanceBench.tsx`
+es el banco A/B. `examples/NavOnlyDemo.tsx` conserva la demo de navegación.
 
 `HomeScreen` admite `activeTab`, `onTabChange`, `onRegister`, `onOpenRoutine`,
 `onOpenNutrition`, `onAvatarPress`, `fontFamily`, `showAssetGuides` y `assets`.
-Los slots de assets son `backgroundImage`, `heroPlantImage`, `workoutImage`
-y `avatarImage`, de tipo `ImageSourcePropType`. Sin fuentes se conservan
-superficies neutras. No se incluyen fotografías ni fuentes tipográficas.
+Los slots son `backgroundImage`, `heroPlantImage`, `workoutImage` y `avatarImage`,
+de tipo `ImageSourcePropType`. No se incluyen fotografías ni archivos de fuentes.
+`GestureHandlerRootView` y `SafeAreaProvider` ya están en `App.tsx`.
+La demo ofrece acciones locales; no tiene backend ni persistencia.
 
-La app necesita `GestureHandlerRootView` y `SafeAreaProvider`, ya presentes
-en `App.tsx`. La demo ofrece acciones locales, no backend ni persistencia.
-
-La documentación `LOCAL-SURFACE.md`, `LIQUID-PHASE-A.md` y los registros anteriores
-se mantienen como historial; sus métricas no describen automáticamente esta revisión.
+Los documentos `CONTACT-PIPELINE.md`, `LOCAL-SURFACE.md`, `LIQUID-PHASE-A.md` y
+los anteriores se mantienen como historial, no como descripción del modo vigente.
