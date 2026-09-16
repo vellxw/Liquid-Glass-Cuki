@@ -13,7 +13,6 @@ uniform float pressure;
 uniform float depth;
 uniform float radius;
 uniform float lighting;
-uniform float contentTravel;
 uniform float proof;
 uniform float debug;
 
@@ -32,18 +31,9 @@ float hermite(float x,float x0,float x1,float y0,float y1,float m0,float m1){
 }
 half4 main(float2 p){
   if(pressure==0.0) return half4(0.0);
-  // A rigid insert translation uses the same cached vector pixels with no scale,
-  // mesh warp or repeated native SVG redraw. The old position is replaced, not
-  // overdrawn as a second circle. The native text uses this SAME travel scalar.
+  // Circle and sign remain a rigid native vector group. This shader never samples
+  // their original or translated positions. Only the material around them changes.
   float insertDistance=length(p-protectedCircle.xy)-protectedCircle.z;
-  float movedDistance=length(p-(protectedCircle.xy+float2(0.0,contentTravel)))-protectedCircle.z;
-  if(contentTravel>0.0 && min(insertDistance,movedDistance)<2.5){
-    half4 background=substrate.eval(p);
-    half4 before=over(material.eval(p),background);
-    half4 after=over(material.eval(p-float2(0.0,contentTravel)),background);
-    float coverage=1.0-smoothstep(.5,2.5,min(insertDistance,movedDistance));
-    return opticalDifference(before.rgb,after.rgb)*half(coverage);
-  }
   float2 d=p-touch;
   float q=abs(d.x)/(radius*1.5);
   if(q>=1.0) return half4(0.0);

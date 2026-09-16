@@ -7,7 +7,6 @@ import { OPTIMIZED_VOLUME_SKSL, IDENTITY_VOLUME_SKSL } from './optimizedShader';
 import { contactRect, useGlassPerformance } from './performance';
 import { OpticalFrameCoordinator, type OpticalFrame } from './useOpticalFrame';
 import { VOLUME } from './volumeField';
-import { faceContentTravel } from './faceCompression';
 import { prepareOpticalPipeline } from './prepareOpticalPipeline';
 import { useNativeMaterialCache } from './useNativeMaterialCache';
 import type { LiquidPhysics } from './types';
@@ -49,19 +48,11 @@ export function VolumeSurface({physics,children,enabled=true,lighting=true,debug
         performance.coalesce?optical.value.y:contactY.value+releaseY.value,width,height,VOLUME.radius,
         enabled?(performance.coalesce?optical.value.p:pressure.value):0,density)
     : NO_REGION,[performance.localDraw,performance.coalesce,width,height,enabled,density]);
-  const region=useDerivedValue(()=>{
-    const r=localRegion.value;
-    if(!enabled||!contentFollow||!performance.contentFollow||pressure.value===0||!protectedCircle)return r;
-    const left=Math.max(0,protectedCircle[0]-protectedCircle[2]-4);
-    const right=Math.min(width,protectedCircle[0]+protectedCircle[2]+4);
-    const x=Math.min(r.x,left),end=Math.max(r.x+r.width,right);
-    return {x,y:0,width:end-x,height};
-  },[enabled,contentFollow,performance.contentFollow,protectedCircle,width,height]);
+  const region=localRegion;
   const uniforms=useDerivedValue(()=>({
     protectedCircle:protectedCircle?[...protectedCircle]:[0,0,0],
     size:[width,height],touch:performance.coalesce?[optical.value.x,optical.value.y]:[contactX.value+releaseX.value,contactY.value+releaseY.value],
     pressure:enabled?(performance.coalesce?optical.value.p:pressure.value):0,depth:((performance.coalesce?optical.value.reduced:reduceMotion.value)?VOLUME.reducedDepth:VOLUME.depth)*Math.max(0,Math.min(1,physics.intensity)),
-    contentTravel:enabled&&contentFollow&&performance.contentFollow?faceContentTravel(pressure.value,reduceMotion.value):0,
     radius:VOLUME.radius,lighting:lighting&&performance.lighting?1:0,proof:substrate?1:underlay?2:0,debug:debug?1:0,
   }),[width,height,enabled,lighting,debug,substrate,underlay,physics.intensity,protectedCircle,performance.lighting,performance.coalesce,contentFollow,performance.contentFollow]);
   const paint=<Shader source={selectedEffect!} uniforms={uniforms}>

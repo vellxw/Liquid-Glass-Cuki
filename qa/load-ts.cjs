@@ -41,6 +41,7 @@ function createLoader(options = {}) {
     Animated: { View: 'AnimatedView', ScrollView: 'AnimatedScrollView',
       Value: class { constructor(value) { this.value = value; } },
       multiply: (value, factor) => ({ value, factor }), event: () => () => {} },
+    PixelRatio: { get: () => 3 },
     Platform: { OS: 'ios', select: options => options.ios ?? options.default },
     StyleSheet: {
       create: value => value,

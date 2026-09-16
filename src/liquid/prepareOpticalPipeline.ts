@@ -19,7 +19,7 @@ export function prepareOpticalPipeline(effect:SkRuntimeEffect|null,empty:SkRunti
   const values:Record<string,number[]>={
     protectedCircle:protectedCircle?[...protectedCircle]:[0,0,0],size:[width,height],
     touch:[width*.55,height*.4],pressure:[1],depth:[VOLUME.depth],radius:[VOLUME.radius],
-    contentTravel:[VOLUME.contentTravel],lighting:[1],proof:[backdrop?2:0],debug:[0],
+    lighting:[1],proof:[backdrop?2:0],debug:[0],
   };
   const uniforms=Array<number>(effect.getUniformFloatCount()).fill(0);
   for(let i=0;i<effect.getUniformCount();i++){

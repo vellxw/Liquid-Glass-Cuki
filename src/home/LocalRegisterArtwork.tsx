@@ -1,6 +1,6 @@
 import { memo, useCallback, useState, useId, useMemo, type RefObject } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
-import Animated,{useAnimatedStyle} from 'react-native-reanimated';
+import { PixelRatio, Platform, StyleSheet, View } from 'react-native';
+import Animated,{useAnimatedStyle,useAnimatedProps,useDerivedValue} from 'react-native-reanimated';
 import {faceContentTravel} from '../liquid/faceCompression';
 import { BlurView } from 'expo-blur';
 import Svg,{ Circle,Defs,G,LinearGradient,Stop } from 'react-native-svg';
@@ -13,12 +13,14 @@ import { useGlassPerformance } from '../liquid/performance';
 import { usePremiumScroll } from '../liquid/PremiumScrollScope';
 import type { LiquidPhysics } from '../liquid/types';
 
+const AnimatedGroup=Animated.createAnimatedComponent(G);
+
 type Props={physics:LiquidPhysics;scale:number;label:string;fontFamily?:string;
   blurTarget?:RefObject<View|null>;enabled?:boolean;debug?:boolean;proofGrid?:boolean;
   contentFollow?:boolean;lighting?:boolean;onReady?:(ready:boolean)=>void};
 /** The optical surface is always Skia. No capsule scale/down, no per-press snapshots.
- * Native REST stays exact. During pressure the optical renderer translates the
- * circle rigidly; native text uses the same .85dp scalar, never a mesh or scale. */
+ * Native REST stays exact. Foreground stays vector/native, with a common small
+ * pixel-aligned settlement. No texture resampling or mesh warp touches the glyphs. */
 export const LocalRegisterArtwork=memo(function LocalRegisterArtwork({physics,scale,label,fontFamily,blurTarget,enabled=true,
   debug=false,proofGrid=false,contentFollow=true,lighting=true,onReady}:Props){
   const performance=useGlassPerformance();
@@ -28,8 +30,13 @@ export const LocalRegisterArtwork=memo(function LocalRegisterArtwork({physics,sc
   const [ready,setReady]=useState(false);
   const surfaceReady=useCallback((value:boolean)=>{setReady(value);onReady?.(value);},[onReady]);
   const protectedCircle=useMemo(()=>[118*s,61*s,32.5*s] as const,[s]);
-  const contentStyle=useAnimatedStyle(()=>({transform:[{translateY:enabled&&ready&&contentFollow&&performance.contentFollow?
-    faceContentTravel(physics.pressure.value,physics.reduceMotion.value):0}]}),[enabled,ready,contentFollow,performance.contentFollow]);
+  const density=PixelRatio.get();
+  const offset=useDerivedValue(()=>enabled&&ready&&contentFollow&&performance.contentFollow
+    ? Math.round(faceContentTravel(physics.pressure.value,physics.reduceMotion.value)*density)/density : 0,
+    [enabled,ready,contentFollow,performance.contentFollow,density]);
+  const contentStyle=useAnimatedStyle(()=>({transform:[{translateY:offset.value}]}));
+  // Native SVG Group's matrix prop is a six-element affine matrix; only Y changes.
+  const insertProps=useAnimatedProps(()=>({opacity:1,matrix:[1,0,0,1,0,offset.value/s]}));
   const substrate=useMemo(()=>proofGrid?makeProofSubstrate(w,h):null,[proofGrid,w,h]);
   return <View pointerEvents="none" style={{width:w,height:h}}>
     {canBlur && <View style={[StyleSheet.absoluteFill,{borderRadius:h/2,overflow:'hidden'}]}>
@@ -45,9 +52,11 @@ export const LocalRegisterArtwork=memo(function LocalRegisterArtwork({physics,sc
             <Stop stopColor="#34464F"/><Stop offset="0.55" stopColor="#0C171D"/><Stop offset="1" stopColor="#4D5F67"/>
           </LinearGradient></Defs>
           <RegisterButtonMaterial id={`${id}-material`}/>
+          <AnimatedGroup animatedProps={insertProps}>
           <Circle cx="118" cy="61" r="32.5" fill="#081015" opacity="0.6"/>
           <Circle cx="118" cy="61" r="30.5" fill={`url(#${id}-circle)`} stroke="#DCE8ED" strokeWidth="2"/>
           <G transform="translate(101 44)"><HomeIcon name="plus" width={34}/></G>
+          </AnimatedGroup>
         </Svg>
       </View>
     </VolumeSurface>

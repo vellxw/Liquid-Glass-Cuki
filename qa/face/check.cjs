@@ -36,6 +36,6 @@ test('visible travel remains bounded and independent of the optional lighting',(
 test('a group of crisp foreground elements shares one sub-dp translation',()=>{
  assert.equal(faceContentTravel(1),.85);assert.equal(faceContentTravel(1,true),.12);assert.equal(faceContentTravel(0),0);
  const s=fs.readFileSync(path.join(root,'src/liquid/volumeShader.ts'),'utf8');
- assert.match(s,/p-float2\(0.0,contentTravel\)/);assert.doesNotMatch(s,/rotate|uniform float time/);
+ assert.doesNotMatch(s,/p-float2\(0.0,contentTravel\)/);assert.doesNotMatch(s,/rotate|uniform float time/);
 });
 console.log(`${n} face-compression checks passed (host, not native images).`);
