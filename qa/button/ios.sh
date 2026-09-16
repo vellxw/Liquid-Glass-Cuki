@@ -23,7 +23,8 @@ echo "$UDID" > "$OUT/simulator.txt"
 xcrun simctl boot "$UDID" || true
 xcrun simctl bootstatus "$UDID" -b
 open -a Simulator
-CI=1 EXPO_NO_TELEMETRY=1 EXPO_PUBLIC_BUTTON_DEMO=1 npx expo start --go --no-dev --minify --ios --localhost --port 8081 --clear > "$OUT/metro.log" 2>&1 &
+# Keep Node's localhost binding consistent with Expo's advertised 127.0.0.1 URL.
+NODE_OPTIONS="${NODE_OPTIONS:-} --dns-result-order=ipv4first" CI=1 EXPO_NO_TELEMETRY=1 EXPO_PUBLIC_BUTTON_DEMO=1 npx expo start --go --no-dev --minify --ios --localhost --port 8081 --clear > "$OUT/metro.log" 2>&1 &
 metro=$!
 cleanup(){
   xcrun simctl io "$UDID" screenshot "$OUT/ios-final.png" || true
@@ -39,7 +40,8 @@ xcodebuild build-for-testing -project NativeButtonQA.xcodeproj -scheme NativeBut
 cd "$ROOT"
 # Metro may be listening after Expo Go initially attempted the URL. Check the
 # actual server, retain its manifest, and explicitly reopen the project after build.
-for i in $(seq 1 60); do
+lsof -nP -iTCP:8081 -sTCP:LISTEN > "$OUT/metro-listener.txt" || true
+for i in $(seq 1 30); do
   if curl -fsS http://127.0.0.1:8081/status > "$OUT/metro-status.txt"; then break; fi
   kill -0 "$metro"
   sleep 2
