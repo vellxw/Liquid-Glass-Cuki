@@ -1,8 +1,8 @@
 node_modules/
 .expo/
 dist/
-android/
-ios/
+/android/
+/ios/
 *.log
 .env
 .env.*
@@ -10,10 +10,7 @@ ios/
 .DS_Store
 qa/output/
 qa/home/output/
-
-# Generated native QA recordings/logs are Actions artifacts, not app assets.
-qa/liquid/native-output/
-qa/liquid/output/
-
-qa/liquid/.injector/
+qa/button/output/
+qa/button/ios/build/
+qa/button/ios/*.xcodeproj/
 __pycache__/

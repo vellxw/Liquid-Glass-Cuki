@@ -1,0 +1,23 @@
+name: NativeButtonQA
+options:
+  deploymentTarget:
+    iOS: '18.0'
+targets:
+  NativeButtonUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: NativeButtonUITests.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vellxw.buttonqa
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO
+schemes:
+  NativeButtonQA:
+    build:
+      targets:
+        NativeButtonUITests: [test]
+    test:
+      targets:
+        - NativeButtonUITests

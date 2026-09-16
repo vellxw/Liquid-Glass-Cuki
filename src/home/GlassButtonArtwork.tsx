@@ -1,0 +1,57 @@
+import { useId, type RefObject } from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
+import { BlurView } from 'expo-blur';
+import Svg, { Circle, Defs, G, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { GLASS, HOME_REFERENCE, PX } from './tokens';
+import { HomeIcon } from './HomeIcon';
+import { HomeText } from './HomeText';
+import { RegisterButtonMaterial } from './RegisterButtonMaterial';
+export type GlassArtworkProps = {
+  variant: 'primary' | 'secondary'; label: string; scale: number;
+  fontFamily?: string; blurTarget?: RefObject<View | null>;
+};
+/** Shared, passive artwork. Uses the original SVG, blur and native text without
+ * recreating them in SwiftUI. The hook only supplies unique SVG IDs; no input,
+ * animation, state machine, pressure or snapshots live here. */
+export function useGlassButtonArtwork({ variant, label, scale, fontFamily, blurTarget }: GlassArtworkProps) {
+  const primary = variant === 'primary', w = primary ? 460 : 297, h = primary ? 122 : 79;
+  const s = PX * scale, radius = h * s / 2;
+  const id = `button${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const url = (name: string) => `url(#${id}-${name})`;
+  const canBlur = Platform.OS !== 'android' || !!blurTarget;
+  return <>
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: radius }]}>
+      {canBlur && <BlurView intensity={GLASS.blur} tint="dark" blurTarget={blurTarget}
+        blurMethod={Platform.OS === 'android' ? 'dimezisBlurViewSdk31Plus' : 'none'}
+        style={[StyleSheet.absoluteFill, { opacity: GLASS.blurOpacity }]} />}
+      <Svg width={w*s} height={h*s} viewBox={`0 0 ${w} ${h}`}>
+        <Defs>
+          <LinearGradient id={`${id}-base`} x1="0" y1="0" x2="0" y2="1">
+            <Stop stopColor="#86999E" stopOpacity={primary ? 0.38 : 0.23} />
+            <Stop offset="0.48" stopColor="#131D23" stopOpacity="0.74" />
+            <Stop offset="1" stopColor="#526269" stopOpacity="0.38" />
+          </LinearGradient>
+          <LinearGradient id={`${id}-edge`} x1="0" y1="0" x2="1" y2="1">
+            <Stop stopColor="#D8F6FF" /><Stop offset="0.38" stopColor="#9EADAD" />
+            <Stop offset="0.66" stopColor="#EFE3CA" /><Stop offset="1" stopColor="#6F91A4" />
+          </LinearGradient>
+          <LinearGradient id={`${id}-circle`} x1="0" y1="0" x2="1" y2="1">
+            <Stop stopColor="#34464F" /><Stop offset="0.55" stopColor="#0C171D" /><Stop offset="1" stopColor="#4D5F67" />
+          </LinearGradient>
+        </Defs>
+        {primary ? <RegisterButtonMaterial id={id} /> :
+          <Rect x="1" y="1" width={w-2} height={h-2} rx={(h-2)/2} fill={url('base')} />}
+        {primary && <>
+          <Circle cx="118" cy="61" r="32.5" fill="#081015" opacity="0.6" />
+          <Circle cx="118" cy="61" r="30.5" fill={url('circle')} stroke="#DCE8ED" strokeWidth="2" />
+        </>}
+        {!primary && <Rect x="0.8" y="0.8" width={w-1.6} height={h-1.6} rx={(h-1.6)/2} fill="none"
+          stroke={url('edge')} strokeWidth={GLASS.secondaryBorder} />}
+        {primary ? <G transform="translate(101 44)"><HomeIcon name="plus" width={34} /></G> :
+          <G transform="translate(203 26)"><HomeIcon name="arrow" width={29} /></G>}
+      </Svg>
+    </View>
+    <HomeText x={primary ? 193 : 71} baseline={HOME_REFERENCE.bodyTop + (primary ? 75 : 49)}
+      width={primary ? 254 : 134} size={primary ? 34 : 26} scale={scale} fontFamily={fontFamily}>{label}</HomeText>
+  </>;
+}
