@@ -1,7 +1,8 @@
 import { Skia, TileMode, FilterMode, MipmapMode, type SkImage, type SkRuntimeEffect } from '@shopify/react-native-skia';
 import { VOLUME } from './volumeField';
 
-/** One invisible GPU preparation pass per native cache revision, never a user
+/** Executed on the UI runtime so texture upload and shader preparation use the
+ * rendering context, not a separate JS-thread context. One pass per revision, never a user
  * gesture or per-frame readback. Exercise real texture sampling and the contact
  * branch before reporting ready; drawing a zero-pressure pixel alone cannot prove
  * that the expensive branch/textures are prepared. Unsupported offscreen contexts
@@ -10,6 +11,7 @@ import { VOLUME } from './volumeField';
 export function prepareOpticalPipeline(effect:SkRuntimeEffect|null,empty:SkRuntimeEffect|null,
   material:SkImage,backdrop:SkImage|null,width:number,height:number,
   protectedCircle?:readonly [number,number,number]):boolean {
+  'worklet';
   if(!effect||!empty)return false;
   const surface=Skia.Surface.MakeOffscreen(material.width(),material.height());
   if(!surface)return false;
