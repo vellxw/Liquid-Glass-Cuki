@@ -61,8 +61,8 @@ function createLoader(options = {}) {
   };
   const externals = {
     react,
-    '@expo/ui/swift-ui': { Host:'SwiftUIHost', Button:'SwiftUIButton', HStack:'SwiftUIHStack', Image:'SwiftUIImage', Text:'SwiftUIText', ProgressView:'SwiftUIProgress' },
-    '@expo/ui/swift-ui/modifiers': Object.fromEntries(['buttonStyle','buttonBorderShape','controlSize','disabled','font','foregroundStyle','frame','lineLimit','minimumScaleFactor','accessibilityLabel','accessibilityIdentifier','accessibilityValue'].map(name=>[name,(...args)=>({name,args})])),
+    '@expo/ui/swift-ui': { Host:'SwiftUIHost', RNHostView:'SwiftUIRNHostView', Button:'SwiftUIButton', HStack:'SwiftUIHStack', Image:'SwiftUIImage', Text:'SwiftUIText', ProgressView:'SwiftUIProgress' },
+    '@expo/ui/swift-ui/modifiers': { shapes: {capsule: () => ({type:'capsule'})}, ...Object.fromEntries(['contentShape','opacity','buttonStyle','buttonBorderShape','controlSize','disabled','font','foregroundStyle','frame','lineLimit','minimumScaleFactor','accessibilityLabel','accessibilityIdentifier','accessibilityValue'].map(name=>[name,(...args)=>({name,args})])) },
     'react-native': native,
     'react-native-svg': svg,
     'expo-blur': { BlurView: 'BlurView', BlurTargetView: 'BlurTargetView' },

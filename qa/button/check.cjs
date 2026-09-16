@@ -41,17 +41,17 @@ test('fallback suppresses disabled, busy and missing-action buttons', () => {
     assert.equal(tree.props.disabled,true); tree.props.onPress(); assert.equal(count,0);
   }
 });
-test('iOS is a real SwiftUI Button with system glass style, not an outer Pressable', () => {
+test('iOS is a real SwiftUI Button with the approved artwork, not an outer Pressable', () => {
   let count=0;const {tree}=button('src/buttons/RegisterActionButton.ios.tsx',{onPress:()=>count++,testID:'home-register'});
   assert.equal(tree.type,'SwiftUIHost');const b=walk(tree).find(n=>n.type==='SwiftUIButton');assert.ok(b);
-  assert.equal(b.props.modifiers.find(m=>m.name==='buttonStyle').args[0],'glass');
+  assert.equal(b.props.modifiers.find(m=>m.name==='buttonStyle').args[0],'plain');
   assert.equal(b.props.modifiers.find(m=>m.name==='accessibilityIdentifier').args[0],'home-register');
   b.props.onPress();assert.equal(count,1);assert.equal(walk(tree).some(n=>n.type==='Pressable'),false);
 });
-test('earlier iOS retains a native bordered button', () => {
+test('earlier iOS keeps the SAME original skin and a native plain button', () => {
   const {tree}=button('src/buttons/RegisterActionButton.ios.tsx',{onPress:()=>{}},'18.7');
   const b=walk(tree).find(n=>n.type==='SwiftUIButton');
-  assert.equal(b.props.modifiers.find(m=>m.name==='buttonStyle').args[0],'bordered');
+  assert.equal(b.props.modifiers.find(m=>m.name==='buttonStyle').args[0],'plain');
 });
 test('native disabled/busy guards and label are preserved', () => {
   for (const props of [{disabled:true},{busy:true}]) {
@@ -74,5 +74,32 @@ test('primary action is a single button; no nested interactive layer', () => {
   const l=createLoader();const C=l.load(path.join(root,'src/home/PrimaryRegisterButton.tsx')).PrimaryRegisterButton;
   const action=()=>{};const tree=C({scale:1,onRegister:action});assert.equal(tree.type.name,'RegisterActionButton');
   assert.equal(tree.props.onPress,action);assert.equal(tree.props.testID,'home-register');
+});
+test('iOS reuses the full approved passive tree rather than a system replacement', () => {
+  const {tree}=button('src/buttons/RegisterActionButton.ios.tsx',{onPress:()=>{}});
+  const nodes=walk(tree);assert.equal(nodes.filter(n=>n.type==='SwiftUIButton').length,1);
+  assert.equal(nodes.filter(n=>n.type==='SwiftUIRNHostView').length,1);
+  assert.equal(nodes.filter(n=>n.type==='BlurView').length,1);
+  assert.equal(nodes.filter(n=>n.type==='circle').length,2);
+  assert.ok(nodes.find(n=>n.type?.name==='HomeText'));
+  assert.equal(nodes.filter(n=>n.type==='SwiftUIImage'||n.type==='SwiftUIText').length,0);
+});
+test('full original artwork is identical for both variants and every tested scale', () => {
+  const {expand,serialize}=require('../register/render.cjs');
+  function visual(node){return serialize(expand(node)).replace(/buttonoffline\d+/g,'button');}
+  for(const variant of ['primary','secondary'])for(const scale of [.8,1,1.12,1.6]){
+    const l=createLoader();
+    const Current=l.load(path.join(root,'src/home/GlassButton.tsx')).GlassButton;
+    const source=read('qa/button/approved-GlassButton.tsx.fixture');
+    const tmp=path.join(root,'src/home/.qa-original-button.tsx');
+    try {
+      fs.writeFileSync(tmp,source);
+      const Original=l.load(tmp).GlassButton;
+      const p={variant,label:variant==='primary'?'Registrar +':'Ver rutina',scale};
+      const a=Current(p),b=Original(p);
+      assert.equal(visual(a.props.children),visual(b.props.children));
+      assert.equal(JSON.stringify(a.props.style({pressed:false})),JSON.stringify(b.props.style({pressed:false})));
+    }finally{fs.rmSync(tmp,{force:true});}
+  }
 });
 console.log(`${passed} normal-button host checks passed. Native tests and screenshots are separate.`);

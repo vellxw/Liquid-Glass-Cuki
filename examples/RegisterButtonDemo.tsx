@@ -3,6 +3,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View, useWin
 import { BlurTargetView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RegisterActionButton } from '../src/buttons/RegisterActionButton';
+import { GlassButton } from '../src/home/GlassButton';
 import { CukiHomeDemo } from '../src/demo/CukiHomeDemo';
 
 /** A button demo, not a physics laboratory. No control of pressure/drag/optics. */
@@ -14,6 +15,7 @@ export function RegisterButtonDemo() {
   const [disabled, setDisabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [home, setHome] = useState(false);
+  const [original, setOriginal] = useState(false);
   const scale = Math.min(1.6, (width - insets.left - insets.right) / 375);
   if (home) return <CukiHomeDemo />;
   return <View style={styles.screen}>
@@ -21,11 +23,14 @@ export function RegisterButtonDemo() {
     <ScrollView testID="button-demo-scroll" contentContainerStyle={{paddingTop: insets.top + 24, paddingHorizontal: 24, paddingBottom: insets.bottom + 24}}>
       <Text style={styles.title}>Registrar</Text>
       <Text style={styles.note}>
-        {Platform.OS === 'ios' ? 'Botón nativo de Apple. Su respuesta la controla el sistema.' : 'Botón de acción con vidrio estático. Sin motor de presión.'}
+        {Platform.OS === 'ios' ? 'Diseño Black Glass original. Botón nativo sin simulación de presión.' : 'Botón de acción con vidrio estático. Sin motor de presión.'}
       </Text>
       <View style={styles.button}>
-        <RegisterActionButton scale={scale} blurTarget={target} testID="demo-register"
-          disabled={disabled} busy={busy} onPress={() => setCount(value => value + 1)} />
+        {original ? <GlassButton variant="primary" label="Registrar +" scale={scale}
+          blurTarget={target} testID="original-register" onPress={() => setCount(value => value + 1)} /> :
+          <RegisterActionButton scale={scale} blurTarget={target} testID="demo-register"
+            disabled={disabled} busy={busy} onPress={() => setCount(value => value + 1)} />}
+
       </View>
       <Text testID="demo-count" style={styles.count}>Acciones: {count}</Text>
       <View style={styles.row}><Text style={styles.text}>Deshabilitado</Text>
@@ -34,6 +39,8 @@ export function RegisterButtonDemo() {
         <Switch testID="demo-busy" accessibilityLabel="Ocupado" value={busy} onValueChange={setBusy} /></View>
       <Pressable testID="demo-open-home" accessibilityRole="button" accessibilityLabel="Ver Home"
         onPress={() => setHome(true)} style={styles.link}><Text style={styles.text}>Ver Home</Text></Pressable>
+      <View style={styles.row}><Text style={styles.text}>Comparar diseño original</Text>
+        <Switch testID="demo-original" accessibilityLabel="Comparar diseño original" value={original} onValueChange={setOriginal} /></View>
       <Text style={styles.note}>Tocar ejecuta una acción. Mantener no repite. Arrastrar no manipula el vidrio. El scroll conserva su comportamiento normal.</Text>
     </ScrollView>
   </View>;

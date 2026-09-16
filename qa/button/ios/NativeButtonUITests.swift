@@ -1,9 +1,14 @@
 import XCTest
 
-/// Tests the real SwiftUI Button hosted by Expo Go, not a mock or generated animation.
+/// Real SwiftUI Button with original native CUKI artwork; includes a same-size visual A/B.
 final class NativeButtonUITests: XCTestCase {
   func snapshot(_ name: String) {
     let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    a.name = name; a.lifetime = .keepAlways; add(a)
+  }
+  func geometry(_ name: String, _ element: XCUIElement) {
+    let r = element.frame
+    let a = XCTAttachment(string: "{\"x\":\(r.minX),\"y\":\(r.minY),\"width\":\(r.width),\"height\":\(r.height),\"screenWidth\":\(XCUIScreen.main.screenshot().image.size.width)}")
     a.name = name; a.lifetime = .keepAlways; add(a)
   }
   func testStandardGlassButton() {
@@ -36,6 +41,16 @@ final class NativeButtonUITests: XCTestCase {
       waitForExpectations(timeout: 8)
     }
     expect(0); snapshot("01-native-rest")
+    geometry("appearance-restored-bounds", button)
+    snapshot("appearance-restored")
+    app.switches["demo-original"].tap()
+    let original = app.buttons["original-register"]
+    XCTAssertTrue(original.waitForExistence(timeout: 5))
+    geometry("appearance-original-bounds", original)
+    snapshot("appearance-original")
+    app.switches["demo-original"].tap()
+    XCTAssertTrue(button.waitForExistence(timeout: 5))
+    expect(0)
     button.tap(); expect(1)
     button.press(forDuration: 1.3); expect(2); snapshot("02-release")
     let start = button.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
