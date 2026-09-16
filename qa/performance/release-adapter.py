@@ -18,7 +18,7 @@ module=types.ModuleType('metrics');text=adapt((ROOT/'qa/performance/metrics.py')
 sys.modules['metrics']=module
 for file in ['qa/liquid/android-smoke.py','qa/liquid/native-perf.py','qa/performance/run.py',
              'qa/liquid/home-smoke.py','qa/performance/trace-report.py',
-             'qa/liquid/validate-locality.py','qa/liquid/strict-rest.py']:
+             'qa/liquid/validate-locality.py','qa/liquid/strict-rest.py','qa/premium/scroll-smoke.py']:
  text=adapt((ROOT/file).read_text());(ADAPTED/Path(file).name).write_text(text)
  print('RELEASE_PROTOCOL',file,flush=True)
  exec(compile(text,'release/'+file,'exec'),{'__name__':'__main__','__file__':str(ADAPTED/Path(file).name)})

@@ -30,3 +30,5 @@ python qa/liquid/native-perf.py
 python qa/performance/run.py
 python qa/liquid/home-smoke.py
 python qa/performance/trace-report.py
+
+python qa/premium/scroll-smoke.py

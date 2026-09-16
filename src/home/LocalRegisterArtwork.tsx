@@ -1,4 +1,4 @@
-import { memo, useCallback, useId, useMemo, useState, type RefObject } from 'react';
+import { memo, useId, useMemo, type RefObject } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import Svg,{ Circle,Defs,G,LinearGradient,Stop } from 'react-native-svg';
@@ -22,8 +22,6 @@ export const LocalRegisterArtwork=memo(function LocalRegisterArtwork({physics,sc
   const scroll=usePremiumScroll();
   const id=`volume${useId().replace(/[^a-zA-Z0-9]/g,'')}`,s=PX*scale,w=460*s,h=122*s;
   const canBlur=performance.nativeBlur && (Platform.OS!=='android'||!!blurTarget);
-  const [supported,setSupported]=useState(true);
-  const ready=useCallback((value:boolean)=>{setSupported(value);onReady?.(value);},[onReady]);
   const substrate=useMemo(()=>proofGrid?makeProofSubstrate(w,h):null,[proofGrid,w,h]);
   return <View pointerEvents="none" style={{width:w,height:h}}>
     {canBlur && <View style={[StyleSheet.absoluteFill,{borderRadius:h/2,overflow:'hidden'}]}>
@@ -32,7 +30,7 @@ export const LocalRegisterArtwork=memo(function LocalRegisterArtwork({physics,sc
         style={[StyleSheet.absoluteFill,{opacity:GLASS.blurOpacity}]}/>
     </View>}
     <VolumeSurface key={`${w}:${h}`} physics={physics} enabled={enabled} debug={debug} lighting={lighting}
-      substrate={substrate} backdropTarget={blurTarget} onReady={ready} resourceRevision={scroll?.resourceRevision} protectedCircle={[118*s,61*s,32.5*s]}>
+      substrate={substrate} backdropTarget={blurTarget} onReady={onReady} resourceRevision={scroll?.resourceRevision} protectedCircle={[118*s,61*s,32.5*s]}>
       <View style={[StyleSheet.absoluteFill,{borderRadius:h/2,overflow:'hidden'}]}>
         <Svg width={w} height={h} viewBox="0 0 460 122">
           <Defs><LinearGradient id={`${id}-circle`} x1="0" y1="0" x2="1" y2="1">

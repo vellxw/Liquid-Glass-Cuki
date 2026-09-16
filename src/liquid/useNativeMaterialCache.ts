@@ -51,7 +51,7 @@ export function useNativeMaterialCache(physics:LiquidPhysics,target?:RefObject<V
   const [cache,setCache]=useState<Cache|null>(null);
   const alive=useRef(true),generation=useRef(0),capturing=useRef(false);
   const wanted=useRef(false),pending=useRef<Cache|null>(null);
-  const pendingOnUI=useSharedValue(false);
+  const pendingOnUI=useSharedValue(false),requestedOnUI=useSharedValue(false);
   const timer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const raf=useRef(0),attempts=useRef(0);
   const pump=useRef<()=>void>(()=>{});
@@ -61,9 +61,12 @@ export function useNativeMaterialCache(physics:LiquidPhysics,target?:RefObject<V
   },[physics.active,physics.pressure,pendingOnUI]);
   useAnimatedReaction(()=>pendingOnUI.value&&canInstallCache(physics.active.value,physics.pressure.value),
     (ready,previous)=>{if(ready&&!previous)scheduleOnRN(install);},[install]);
+  const captureAtRest=useCallback(()=>pump.current(),[]);
+  useAnimatedReaction(()=>requestedOnUI.value&&canInstallCache(physics.active.value,physics.pressure.value),
+    (ready,previous)=>{if(ready&&!previous)scheduleOnRN(captureAtRest);},[captureAtRest]);
   pump.current=()=>{
-    if(!alive.current||capturing.current||!wanted.current||!source.current)return;
-    wanted.current=false;capturing.current=true;
+    if(!alive.current||capturing.current||!wanted.current||!source.current || !canInstallCache(physics.active.value,physics.pressure.value))return;
+    wanted.current=false;requestedOnUI.value=false;capturing.current=true;
     const version=generation.current;
     void (async()=>{
       try {
@@ -79,23 +82,24 @@ export function useNativeMaterialCache(physics:LiquidPhysics,target?:RefObject<V
         console.warn('[premium-material-cache]',String(error));
         // Bounded retry, never a per-frame retry loop. Retain native control on failure.
         if(alive.current&&version===generation.current&&attempts.current++<1){
-          wanted.current=true;timer.current=setTimeout(()=>pump.current(),240);
+          wanted.current=true;timer.current=setTimeout(()=>{requestedOnUI.value=true;pump.current();},240);
         }
       }finally{
         capturing.current=false;
-        if(alive.current&&version!==generation.current)raf.current=requestAnimationFrame(()=>pump.current());
+        if(alive.current&&wanted.current&&requestedOnUI.value)raf.current=requestAnimationFrame(()=>pump.current());
       }
     })();
   };
   const prepare=useCallback(()=>{
     generation.current++;attempts.current=0;wanted.current=true;
-    pending.current=null;pendingOnUI.value=false;
+    pending.current=null;pendingOnUI.value=false;requestedOnUI.value=false;
     if(timer.current)clearTimeout(timer.current);
     cancelAnimationFrame(raf.current);
     timer.current=setTimeout(()=>{
+      requestedOnUI.value=true;
       raf.current=requestAnimationFrame(()=>{raf.current=requestAnimationFrame(()=>pump.current());});
     },160);
-  },[pendingOnUI]);
+  },[pendingOnUI,requestedOnUI]);
   useEffect(()=>{alive.current=true;return()=>{
     alive.current=false;generation.current++;pending.current=null;
     if(timer.current)clearTimeout(timer.current);cancelAnimationFrame(raf.current);
