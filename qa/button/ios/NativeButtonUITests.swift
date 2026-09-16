@@ -14,7 +14,17 @@ final class NativeButtonUITests: XCTestCase {
     if app.buttons["Continue"].waitForExistence(timeout: 5) { app.buttons["Continue"].tap() }
     if app.buttons["Go home"].exists && app.buttons["Reload"].exists && app.buttons["Close"].exists { app.buttons["Close"].tap() }
     let button = app.buttons["demo-register"]
-    XCTAssertTrue(button.waitForExistence(timeout: 100), app.debugDescription)
+    // Recover only a positively identified initial server-connect race. Never
+    // dismiss JavaScript/native runtime errors or relax button assertions.
+    for _ in 0..<12 {
+      if button.waitForExistence(timeout: 5) { break }
+      if app.textViews.containing(NSPredicate(format: "label CONTAINS %@", "Could not connect to the server.")).count > 0 && app.buttons["Try again"].exists {
+        snapshot("startup-server-retry")
+        app.buttons["Try again"].tap()
+      }
+      if app.buttons["Go home"].exists && app.buttons["Reload"].exists && app.buttons["Close"].exists { app.buttons["Close"].tap() }
+    }
+    XCTAssertTrue(button.exists, app.debugDescription)
     XCTAssertTrue(button.isEnabled)
     XCTAssertGreaterThan(button.frame.width, 190)
     XCTAssertGreaterThanOrEqual(button.frame.height, 44)
@@ -29,7 +39,9 @@ final class NativeButtonUITests: XCTestCase {
     button.tap(); expect(1)
     button.press(forDuration: 1.3); expect(2); snapshot("02-release")
     let start = button.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-    let end = button.coordinate(withNormalizedOffset: CGVector(dx: 1.7, dy: 0.5))
+    // End outside the button, but inside the physical screen.
+    let end = app.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0))
+      .withOffset(CGVector(dx: -6, dy: button.frame.midY))
     start.press(forDuration: 0.3, thenDragTo: end); expect(2)
     app.switches["demo-disabled"].tap(); XCTAssertFalse(button.isEnabled); snapshot("03-disabled")
     app.switches["demo-disabled"].tap(); XCTAssertTrue(button.isEnabled)

@@ -27,16 +27,27 @@ CI=1 EXPO_NO_TELEMETRY=1 EXPO_PUBLIC_BUTTON_DEMO=1 npx expo start --go --no-dev 
 metro=$!
 cleanup(){
   xcrun simctl io "$UDID" screenshot "$OUT/ios-final.png" || true
+  if [ -d "$OUT/NativeButton.xcresult" ]; then xcrun xcresulttool export attachments --path "$OUT/NativeButton.xcresult" --output-path "$OUT/screenshots" || true; fi
   if [ -n "${rec:-}" ]; then kill -INT "$rec" || true; wait "$rec" || true; fi
   kill "$metro" || true
 }
 trap cleanup EXIT
-command -v xcodegen || brew install xcodegen
+command -v xcodegen || HOMEBREW_NO_AUTO_UPDATE=1 brew install xcodegen
 cd qa/button/ios
 xcodegen generate
 xcodebuild build-for-testing -project NativeButtonQA.xcodeproj -scheme NativeButtonQA -destination "platform=iOS Simulator,id=$UDID" -derivedDataPath build CODE_SIGNING_ALLOWED=NO > "$OUT/xcode-build.log" 2>&1
 cd "$ROOT"
-sleep 10
+# Metro may be listening after Expo Go initially attempted the URL. Check the
+# actual server, retain its manifest, and explicitly reopen the project after build.
+for i in $(seq 1 60); do
+  if curl -fsS http://127.0.0.1:8081/status > "$OUT/metro-status.txt"; then break; fi
+  kill -0 "$metro"
+  sleep 2
+done
+grep -q 'packager-status:running' "$OUT/metro-status.txt"
+curl -fsS -H 'expo-platform: ios' -H 'accept: application/expo+json' http://127.0.0.1:8081 > "$OUT/ios-manifest.json"
+xcrun simctl openurl "$UDID" 'exp://127.0.0.1:8081'
+sleep 4
 xcrun simctl io "$UDID" recordVideo --codec=h264 "$OUT/ios-button.mp4" > "$OUT/record.log" 2>&1 &
 rec=$!
 xcodebuild test-without-building -project qa/button/ios/NativeButtonQA.xcodeproj -scheme NativeButtonQA -destination "platform=iOS Simulator,id=$UDID" -derivedDataPath qa/button/ios/build -resultBundlePath "$OUT/NativeButton.xcresult" -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO > "$OUT/xcode-test.log" 2>&1
