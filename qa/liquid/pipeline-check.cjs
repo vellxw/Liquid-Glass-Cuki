@@ -21,12 +21,12 @@ test('the true gradient matches finite differences throughout the plate',()=>{
 test('relief and refraction vanish together in REST',()=>{
  for(let x=0;x<230;x+=3){const a=volumeSample(x,30,115,30,230,61,0);assert.ok(a.z===0&&a.gx===0&&a.gy===0&&a.sx===0&&a.sy===0);}
 });
-test('small negative release overshoot is bounded, not a growing ripple',()=>{
- const a=volumeSample(115,30,115,30,230,61,-.01);assert.ok(a.z>0&&a.z<=VOLUME.depth*.010001);
+test('negative pressure is clamped: no release bulge',()=>{
+ const a=volumeSample(115,30,115,30,230,61,-.01);assert.ok(a.z===0&&a.sy===0);
 });
-test('native letters have exactly zero movement, even with reduced motion',()=>{
- for(const p of [-.03,0,.5,1,1.03])for(let x=0;x<230;x+=3){const d=contentDepth(150,30,x,30,p);assert.equal(d,0);}
- assert.equal(contentDepth(150,30,150,30,0),0);assert.equal(contentDepth(150,30,150,30,1,true),0);
+test('foreground is a common sub-dp rigid settling, not warped lettering',()=>{
+ for(const p of [0,.5,1,1.03])for(let x=0;x<230;x+=3){const d=contentDepth(150,30,x,30,p);assert.ok(d>=0&&d<=.85);}
+ assert.equal(contentDepth(150,30,150,30,0),0);assert.equal(contentDepth(150,30,150,30,1,true),.12);
 });
 test('cache preparation is not coupled to every press or render frame',()=>{
  const s=read('src/liquid/VolumeSurface.tsx');assert.doesNotMatch(s,/makeImageFromView|nativeBacking|activeTexture|useFrameCallback|scheduleOnRN|setTimeout|setInterval/);
@@ -39,8 +39,8 @@ test('underlay is a distinct shader input, actually refracted',()=>{
  assert.match(read('src/liquid/VolumeSurface.tsx'),/substrate\?:SkImage/);
  assert.match(s,/substrate.eval\(sampleAt\).rgb-substrate.eval\(p\).rgb/);
 });
-test('optical difference derives from both resting and pressed normals',()=>{
- const s=read('src/liquid/volumeShader.ts');assert.match(s,/baseGrad/);assert.match(s,/spec\(n,cold\)-spec\(n0,cold\)/);
+test('inner face mapping constrains the visible upper AND lower edge travel',()=>{
+ const s=read('src/liquid/volumeShader.ts');assert.match(s,/hermite/);assert.match(s,/sampleY/);
  assert.doesNotMatch(s,/uniform float time|sine|rippleOffset/);
 });
 test('normal control excludes the former whole-button MechanicalSupport',()=>{

@@ -33,11 +33,9 @@ test('geometry uses the same non-quantized contact coordinates',()=>{
  const f=fs.readFileSync(path.join(root,'src/liquid/useOpticalFrame.ts'),'utf8');assert.match(f,/x:contactX.value\+releaseX.value/);assert.match(f,/y:contactY.value\+releaseY.value/);
  assert.doesNotMatch(s,/withTiming|withSpring|useFrameCallback|setInterval|setTimeout/);
 });
-test('shader optimization only reorders support rejection and shares the original sample',()=>{
- const test=`  float2 d=p-touch;\n  float q=dot(d,d)/(radius*radius);\n  if(q>=2.25) return half4(0.0);`;
- const old=VOLUME_SKSL.replace(test,'').replace('substrate.eval(sampleAt).rgb-substrate.eval(p).rgb','substrate.eval(sampleAt).rgb-background.rgb').replace(/\s+/g,'');
- const next=OPTIMIZED_VOLUME_SKSL.replace(test,'').replace(/\s+/g,'');
- assert.equal(old,next);assert.throws(()=>optimizeVolumeShader('invalid shader'));
+test('shader optimization only shares one identical cached sample',()=>{
+ const expected=VOLUME_SKSL.replace('substrate.eval(sampleAt).rgb-substrate.eval(p).rgb','substrate.eval(sampleAt).rgb-background.rgb');
+ assert.equal(OPTIMIZED_VOLUME_SKSL,expected);assert.throws(()=>optimizeVolumeShader('invalid shader'));
 });
 test('unchanged artwork and surrounding controls retain their original hashes',()=>{
  const changedByPremiumPlan=new Set(['src/liquid/volumeShader.ts','src/liquid/volumeField.ts','src/liquid/LiquidPressable.tsx','src/liquid/physics.ts','src/home/HomeScreen.tsx']);

@@ -14,7 +14,11 @@ for y in range(height):
   edge=radius-((x-max(radius,min(w-radius,x)))**2+(y-radius)**2)**.5
   diff=sum(abs(a-b)for a,b in zip(r.getpixel((x,y)),h.getpixel((x,y))))/3
   if .25*density<=edge<=2.2*density:rim_errors.append(diff)
-  if abs(x-cx)>42*1.96*density:outside_errors.append(diff)
+  # Text and insert have an intentional common .85dp settling. Exclude their
+  # predefined boxes ONLY from far-material invariance; test their rigidity separately.
+  text=(w*193/460-2*density<=x<=w*447/460+2*density and height*.26<=y<=height*.84)
+  circle=((x-w*118/460)**2+(y-height*.5)**2)**.5 <= w*32.5/460+4*density
+  if abs(x-cx)>42*1.96*density and not text and not circle:outside_errors.append(diff)
 result={'pinnedRimMAE':sum(rim_errors)/len(rim_errors),'outsideContactMAE':sum(outside_errors)/len(outside_errors),
  'rimPixels':len(rim_errors),'outsidePixels':len(outside_errors),'density':density}
 (out/'locality.json').write_text(json.dumps(result,indent=2));print('LOCALITY',result,flush=True)

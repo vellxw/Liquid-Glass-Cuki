@@ -16,7 +16,7 @@ def adapt(text):
 module=types.ModuleType('metrics');text=adapt((ROOT/'qa/performance/metrics.py').read_text())
 (ADAPTED/'metrics.py').write_text(text);exec(compile(text,'release/metrics.py','exec'),module.__dict__)
 sys.modules['metrics']=module
-for file in ['qa/liquid/android-smoke.py','qa/liquid/native-perf.py','qa/performance/run.py',
+for file in ['qa/liquid/android-smoke.py','qa/liquid/native-perf.py','qa/face/validate.py','qa/performance/run.py',
              'qa/liquid/home-smoke.py','qa/performance/trace-report.py',
              'qa/liquid/validate-locality.py','qa/liquid/strict-rest.py','qa/premium/scroll-smoke.py']:
  text=adapt((ROOT/file).read_text());(ADAPTED/Path(file).name).write_text(text)

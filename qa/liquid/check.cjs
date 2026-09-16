@@ -78,7 +78,7 @@ test('hold is deterministic and shader has no clock or waves',()=>{
  assert.doesNotMatch(fs.readFileSync(path.join(root,'src/liquid/volumeShader.ts'),'utf8'),/uniform float time|\bsin\(|\bcos\(/);
 });
 test('material coordinates move without requiring lighting',()=>{
- const a=volume.volumeSample(130,30.5,115,30.5,230,61,1);assert.ok(Math.hypot(a.sx,a.sy)>.5);
+ const a=volume.volumeSample(115,6.3,115,30.5,230,61,1);assert.ok(Math.hypot(a.sx,a.sy)>2);
 });
 test('gradient is finite and optical displacement bounded',()=>{
  for(let cx=5;cx<230;cx+=17)for(let cy=5;cy<61;cy+=11)for(let x=0;x<230;x+=5){
@@ -100,7 +100,7 @@ test('native content stays outside shader and never changes scale',()=>{
 });
 test('ablation zeros optics AND content travel',()=>{
  const s=fs.readFileSync(path.join(root,'src/liquid/VolumeSurface.tsx'),'utf8');assert.match(s,/pressure:enabled\?\(performance.coalesce\?optical.value.p:pressure.value\):0/);
- const a=fs.readFileSync(path.join(root,'src/home/LocalRegisterArtwork.tsx'),'utf8');assert.doesNotMatch(a,/translateY|useAnimatedStyle|labelStyle/);
+ const a=fs.readFileSync(path.join(root,'src/home/LocalRegisterArtwork.tsx'),'utf8');assert.match(a,/enabled&&ready&&contentFollow/);
 });
 
 test('only PrimaryRegisterButton adopts the new engine',()=>{

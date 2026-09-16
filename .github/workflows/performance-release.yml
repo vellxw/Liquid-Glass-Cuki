@@ -1,12 +1,5 @@
 name: Registrar release APK performance
 on:
-  pull_request:
-    paths:
-      - 'src/liquid/**'
-      - 'src/home/LocalRegisterArtwork.tsx'
-      - 'qa/premium/**'
-      - 'qa/performance/**'
-      - '.github/workflows/performance-release.yml'
   workflow_dispatch:
 permissions:
   contents: read

@@ -9,6 +9,7 @@ on:
       - 'package.json'
       - 'qa/liquid/**'
       - 'qa/performance/**'
+      - 'qa/face/**'
       - 'examples/GlassPerformanceBench.tsx'
       - '.github/workflows/liquid-native.yml'
   workflow_dispatch:
