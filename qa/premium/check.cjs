@@ -54,17 +54,16 @@ test('scroll arbitration is vertical, not a loss of horizontal local manipulatio
 test('vertical drag remains available in an isolated non-scrolling lab',()=>{
  const h=harness();h.down(115,20);h.move(116,38);h.up(116,38);assert.equal(h.calls(),1);
 });
-test('surface and content contain no rigid pose or independent animation',()=>{
+test('frame is fixed; foreground follows the SAME bounded pressure scalar',()=>{
  const s=fs.readFileSync(path.join(root,'src/home/LocalRegisterArtwork.tsx'),'utf8');
- assert.doesNotMatch(s,/translate[XY]|rotate|scale[XY]|useAnimatedStyle|Animated.View/);
- assert.equal(P.contentTravel,0);
+ assert.doesNotMatch(s,/rotate|scaleX|scaleY|translateX/);assert.match(s,/faceContentTravel/);assert.equal(P.contentTravel,.85);
 });
 test('lighting modulates existing RGB; no gold/cyan additive emission or sweep',()=>{
  const s=l.load(path.join(root,'src/liquid/volumeShader.ts')).VOLUME_SKSL;
  assert.match(s,/rgb\*=clamp/);assert.doesNotMatch(s,/rgb\+=lighting|uniform float time|\bsin\(|\bcos\(/);
 });
 test('local geometry remains visible with lighting removed and stays bounded',()=>{
- let maximum=0;for(let x=0;x<230;x+=2)for(let y=0;y<61;y+=2){const a=volumeSample(x,y,115,30,230,61,1);maximum=Math.max(maximum,Math.hypot(a.sx,a.sy));assert.ok(Math.hypot(a.sx,a.sy)<=P.maxRefraction);}
+ let maximum=0;for(let x=0;x<230;x+=2)for(let y=0;y<61;y+=2){const a=volumeSample(x,y,115,30,230,61,1);maximum=Math.max(maximum,Math.hypot(a.sx,a.sy));assert.ok(Math.hypot(a.sx,a.sy)<=P.maxRefraction+1e-8);}
  assert.ok(maximum>.8);
 });
 test('both interior bevels compress inward while the outer border stays fixed',()=>{

@@ -1,10 +1,8 @@
 import { PREMIUM_PRESS as P } from './premiumPress.tokens';
-/** Native artwork stays mounted and unchanged at all times. Skia contributes only
- * the signed optical difference caused by the local negative-height field.
- * Zero pressure or zero local support yields a truly transparent pixel, not a
- * resampled approximation of the approved native resting material.
- * This is per-pixel compositing of refracted coordinates, NOT a pressed opacity.
- */
+/** A frame-anchored face, not a dark contact disk. At full pressure the ORIGINAL
+ * inner border travels 2.5dp downward/1.5dp upward at the contact column. Those
+ * distances are constraints of the mapping, not nominal strengths attenuated
+ * by pin/radial masks. Native baseline stays underneath; REST is exact alpha zero. */
 export const VOLUME_SKSL = `
 uniform shader material;
 uniform shader substrate;
@@ -18,93 +16,63 @@ uniform float lighting;
 uniform float proof;
 uniform float debug;
 
-float spec(float3 n,float3 h){
-  float v=max(0.0,dot(n,h));float v2=v*v;float v4=v2*v2;float v8=v4*v4;
-  float v16=v8*v8; float v32=v16*v16; return v32*v32; // environmental lobe, exponent 64
-}
 half4 over(half4 a,half4 b){return a+b*(1.0-a.a);}
-// Solve source-over so a cached baseline B becomes its deformed target D:
-// sourceRGB_premult = alpha*B + (D-B). Alpha is the minimum representable
-// coverage across channels, not a time/pressure fade. For D=B it is exactly zero.
-// A changing external native backdrop is still an approximation: B is captured.
 half4 opticalDifference(half3 before,half3 after){
-  float3 b=clamp(float3(before),0.0,1.0);
-  float3 d=clamp(float3(after),0.0,1.0)-b;
+  float3 b=clamp(float3(before),0.0,1.0),d=clamp(float3(after),0.0,1.0)-b;
   float3 room=mix(b,float3(1.0)-b,step(float3(0.0),d));
   float3 coverage=abs(d)/max(room,float3(.00001));
   float alpha=clamp(max(coverage.r,max(coverage.g,coverage.b)),0.0,1.0);
-  if(alpha<=.000001) return half4(0.0);
+  if(alpha<=.000001)return half4(0.0);
   return half4(half3(clamp(alpha*b+d,float3(0.0),float3(alpha))),half(alpha));
+}
+float hermite(float x,float x0,float x1,float y0,float y1,float m0,float m1){
+  float len=max(.0001,x1-x0),t=clamp((x-x0)/len,0.0,1.0),t2=t*t,t3=t2*t;
+  return (2.0*t3-3.0*t2+1.0)*y0+(t3-2.0*t2+t)*len*m0+(-2.0*t3+3.0*t2)*y1+(t3-t2)*len*m1;
 }
 half4 main(float2 p){
   if(pressure==0.0) return half4(0.0);
-  float rr=size.y*.5;
-  float2 ev=p-float2(clamp(p.x,rr,size.x-rr),rr);
-  float el=length(ev),edge=rr-el;
-  // The silhouette/outermost rim are the SAME pixels in every interaction state.
-  if(edge<=2.4) return half4(0.0);
-  float2 d=p-touch;
-  float q=dot(d,d)/(radius*radius);
-  if(q>=2.25) return half4(0.0);
-  // The native plus is a rigid insert, not refracted lettering or a gel mesh.
-  // Guard includes the full 2.75dp sampling bound plus a bilinear footprint.
+  // Circle and sign remain a rigid native vector group. This shader never samples
+  // their original or translated positions. Only the material around them changes.
   float insertDistance=length(p-protectedCircle.xy)-protectedCircle.z;
-  float insertMask=protectedCircle.z>0.0?smoothstep(${P.maxRefraction+1},${P.maxRefraction+2.2},insertDistance):1.0;
-  if(insertMask==0.0) return half4(0.0);
-
-  float a=max(0.0,1.0-q),b=max(0.0,1.0-q/2.25);
-  float k=.65*a*a*a+.35*b*b*b;
-  float dk=(-1.95*a*a-1.05*b*b/2.25)*2.0/(radius*radius);
-  float u=clamp((edge-2.4)/5.6,0.0,1.0);
-  float pin=u*u*(3.0-2.0*u),dpin=6.0*u*(1.0-u)/5.6;
-  float2 en=-ev/max(.0001,el);
-  float z=-depth*pressure*k*pin;
-  float2 grad=-depth*pressure*(dk*d*pin+k*dpin*en);
-
-  // Surface in REST has a rounded shoulder. Evaluate change against this normal,
-  // rather than pretending every point of the approved bevel was a flat sheet.
-  float v=clamp(edge/10.0,0.0,1.0);
-  float2 baseGrad=2.8*6.0*v*(1.0-v)/10.0*en;
-  float3 n0=normalize(float3(-baseGrad,1.0));
-  float3 n=normalize(float3(-(baseGrad+grad),1.0));
-  // Inward height shifts the inner face in perspective. Slopes refract independently.
-  float2 shift=(grad*${P.refraction}+float2(0.0,z*${P.projection}))*pin;
-  float band=max(0.0,1.0-edge/18.0);
-  shift.y+=${P.bevelTravel}*(depth/${P.depth})*pressure*k*pin*band*band*sign(p.y-rr);
-  shift*=${P.maxRefraction}/sqrt(${P.maxRefraction**2}+dot(shift,shift));
-  float2 sampleAt=clamp(p+shift,float2(.5),size-float2(.5));
+  float2 d=p-touch;
+  float q=abs(d.x)/(radius*1.5);
+  if(q>=1.0) return half4(0.0);
+  float rr=size.y*.5,ex=p.x-clamp(p.x,rr,size.x-rr);
+  float inset=size.y*${P.innerBevelDesignInset}/122.0;
+  if(abs(ex)>=rr-inset-1.0)return half4(0.0);
+  float outer=rr-sqrt(max(0.0,rr*rr-ex*ex));
+  float lo=outer+${P.pinStart},hi=size.y-outer-${P.pinStart};
+  if(p.y<=lo||p.y>=hi)return half4(0.0);
+  float a=rr-sqrt(max(.01,(rr-inset)*(rr-inset)-ex*ex)),b=size.y-a;
+  if(a<=lo)return half4(0.0);
+  float envelope=1.0-smoothstep(0.0,1.0,q);
+  float weight=envelope*clamp(pressure,0.0,1.0)*clamp(depth/${P.depth},0.0,1.0)*smoothstep(16.0,28.0,b-a);
+  if(weight==0.0)return half4(0.0);
+  float bias=clamp((touch.y/size.y-.5)*2.0,-1.0,1.0);
+  float at=a+min(${P.faceTopTravel}*(1.0-.15*bias)*weight,(a-lo)*1.65);
+  float bt=b-min(${P.faceBottomTravel}*(1.0+.15*bias)*weight,(a-lo)*1.65);
+  float slope=(b-a)/max(1.0,bt-at);
+  float sampleY=p.y<at?hermite(p.y,lo,at,lo,a,1.0,slope)
+    :p.y>bt?hermite(p.y,bt,hi,b,hi,slope,1.0):a+(p.y-at)*slope;
+  float2 sampleAt=float2(p.x,sampleY);
+  // The complete moving insert remains rigid; this guard also includes the
+  // source sampling footprint. It does NOT attenuate the upper/lower face rim.
+  float insertMask=protectedCircle.z>0.0?smoothstep(${P.maxRefraction+P.contentTravel+1},${P.maxRefraction+P.contentTravel+2.3},insertDistance):1.0;
+  if(insertMask==0.0)return half4(0.0);
   half4 face=material.eval(sampleAt);
-  // Preserve alpha/coverage: no opaque pressure disk, no changed outer silhouette.
   float alpha=max(float(face.a),.0001);
   float3 rgb=float3(face.rgb)/alpha;
-  float3 cold=normalize(float3(-.06,-.15,1.0));
-  float3 warm=normalize(float3(.24,.18,1.0));
-  float coldDelta=spec(n,cold)-spec(n0,cold);
-  float warmDelta=spec(n,warm)-spec(n0,warm);
-  float slopeDelta=dot(n,float3(-.34,-.48,.808))-dot(n0,float3(-.34,-.48,.808));
-  float support=k*pin;
-  // Signed redistribution of reflection, with very weak center AO. No isolated circle.
-  // Achromatic modulation of EXISTING reflections; no new golden/cyan emission.
-  // Keep RGB ratios rather than adding an arbitrary colored light patch.
-  float luminanceChange=(coldDelta*.40+warmDelta*.08+slopeDelta*.12)*pin;
-  rgb*=clamp(1.0+lighting*luminanceChange,0.82,1.18);
-  rgb*=1.0-lighting*.025*abs(pressure)*support;
-  if(debug>.5){
-    float mark=1.0-smoothstep(.35,.85,abs(length(d)-radius));
-    rgb=mix(rgb,float3(.3,.85,.65),mark*.7);
-  }
+  // A CONTACT SHADOW confined to the exposed upper shoulder. It is a consequence
+  // of the frame/face separation, never a uniform dim or a circular overlay.
+  float shoulder=smoothstep(lo,at,p.y)*(1.0-smoothstep(at+1.0,at+6.0,p.y));
+  float lower=(1.0-smoothstep(bt-4.0,bt,p.y))*smoothstep(bt-8.0,bt-4.0,p.y);
+  rgb*=clamp(1.0+lighting*weight*(-.16*shoulder+.035*lower),.80,1.05);
+  if(debug>.5){float mark=1.0-smoothstep(.3,.8,abs(abs(d.x)-radius));rgb=mix(rgb,float3(.3,.85,.65),mark*.7);}
   half4 deformed=half4(half3(clamp(rgb,0.0,1.0)*alpha),face.a);
-  // Both reference layers are read from this instance's cache. The native SVG
-  // stays underneath; neither it nor the text is replaced by these cached pixels.
   half4 background=substrate.eval(p);
-  half4 before=over(material.eval(p),background);
-  half4 after=over(deformed,background);
-  if(proof>0.0){
-    half3 delta=substrate.eval(sampleAt).rgb-substrate.eval(p).rgb;
-    after.rgb+=delta*(1.0-deformed.a);
-  }
+  half4 before=over(material.eval(p),background),after=over(deformed,background);
+  if(proof>0.0){half3 delta=substrate.eval(sampleAt).rgb-substrate.eval(p).rgb;after.rgb+=delta*(1.0-deformed.a);}
   return opticalDifference(before.rgb,after.rgb)*half(insertMask);
 }
 `;
-/** Only a transparent fallback. A real controlled underlay is passed as ImageShader. */
-export const EMPTY_SUBSTRATE_SKSL = `half4 main(float2 p){return half4(0.0);}`;
+export const EMPTY_SUBSTRATE_SKSL=`half4 main(float2 p){return half4(0.0);}`;

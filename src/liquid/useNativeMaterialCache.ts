@@ -47,7 +47,7 @@ async function captureBackdrop(host:RefObject<View|null>,target:RefObject<View|n
  * No arbitrary live RN backdrop: callers invalidate after scene changes/scroll end.
  */
 export function useNativeMaterialCache(physics:LiquidPhysics,target?:RefObject<View|null>,revision?:unknown,
-  prepareGpu?:(material:SkImage,backdrop:SkImage|null)=>void){
+  prepareGpu?:(material:SkImage,backdrop:SkImage|null)=>void|Promise<void>){
   const source=useRef<View>(null),host=useRef<View>(null);
   const gpuPreparation=useRef(prepareGpu);gpuPreparation.current=prepareGpu;
   const [cache,setCache]=useState<Cache|null>(null);
@@ -80,8 +80,9 @@ export function useNativeMaterialCache(physics:LiquidPhysics,target?:RefObject<V
         try{backdrop=await captureBackdrop(host,target,material.width(),material.height());}
         catch(error){console.warn('[premium-backdrop]',String(error));}
         if(!alive.current||version!==generation.current)return;
-        try{gpuPreparation.current?.(material,backdrop);}
+        try{await gpuPreparation.current?.(material,backdrop);}
         catch(error){console.warn('[premium-gpu-prepare]',String(error));}
+        if(!alive.current||version!==generation.current)return;
         pending.current={material,backdrop};pendingOnUI.value=true;install();
         console.log('[premium-cache]',JSON.stringify({revision:version,width:material.width(),height:material.height(),backdrop:!!backdrop}));
       }catch(error){

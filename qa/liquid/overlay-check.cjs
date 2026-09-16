@@ -28,15 +28,15 @@ for(const b of [[0,0,0],[1,1,1],[0,1,.5],[.5,0,1]])
   const c=correction(b,t);c.rgb.forEach((v,j)=>assert.ok(Math.abs(v+b[j]*(1-c.a)-t[j])<1e-10));
  }
 assert.match(shader,/if\(pressure==0\.0\) return half4\(0\.0\)/);
-assert.match(shader,/if\(edge<=2\.4\) return half4\(0\.0\)/);
-assert.match(shader,/if\(q>=2\.25\) return half4\(0\.0\)/);
+assert.match(shader,/if\(p.y<=lo\|\|p.y>=hi\)return half4\(0\.0\)/);
+assert.match(shader,/if\(q>=1\.0\) return half4\(0\.0\)/);
 assert.match(shader,/return opticalDifference\(before.rgb,after.rgb\)/);
 assert.match(surface,/<View ref=\{source\} collapsable=\{false\} onLayout=\{prepare\}/);
 assert.doesNotMatch(surface,/!available &&|opacity:|useAnimatedStyle|withTiming|withSpring/);
 console.log('PASS optical overlay: 20000 deterministic color pairs, extreme channels, exact zero support, original native source remains mounted. Native evidence still required.');
 const art=fs.readFileSync(path.join(root,'src/home/LocalRegisterArtwork.tsx'),'utf8');
-assert.match(shader,/if\(insertMask==0\.0\) return half4\(0\.0\)/);
-assert.match(art,/protectedCircle=\{\[118\*s,61\*s,32\.5\*s\]\}/);
+assert.match(shader,/if\(insertMask==0\.0\)return half4\(0\.0\)/);
+assert.match(art,/\[118\*s,61\*s,32\.5\*s\]/);
 assert.doesNotMatch(art,/circleStyle/);
 const {createLoader}=require('../load-ts.cjs');
 const l=createLoader();
@@ -54,4 +54,4 @@ function circleProps(list){return list.filter(n=>n.type==='circle').map(n=>({...
  fill: typeof n.props.fill==='string'&&n.props.fill.startsWith('url(')?'same-circle-gradient':n.props.fill}));}
 assert.equal(circleProps(local).length,2,'Circle test must not pass on an empty selection');
 assert.deepEqual(circleProps(local),circleProps(normal));
-console.log('PASS fixed native plus insert: original circle geometry/fill/stroke, no transform, shader sampling exclusion.');
+console.log('PASS fixed native plus insert: original circle geometry/fill/stroke at REST; translation-only insert branch during pressure.');

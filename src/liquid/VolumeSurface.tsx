@@ -7,6 +7,7 @@ import { OPTIMIZED_VOLUME_SKSL, IDENTITY_VOLUME_SKSL } from './optimizedShader';
 import { contactRect, useGlassPerformance } from './performance';
 import { OpticalFrameCoordinator, type OpticalFrame } from './useOpticalFrame';
 import { VOLUME } from './volumeField';
+import { runOnUIAsync } from 'react-native-worklets';
 import { prepareOpticalPipeline } from './prepareOpticalPipeline';
 import { useNativeMaterialCache } from './useNativeMaterialCache';
 import type { LiquidPhysics } from './types';
@@ -17,7 +18,7 @@ const identityEffect=(()=>{try{return Skia.RuntimeEffect.Make(IDENTITY_VOLUME_SK
 const empty=Skia.RuntimeEffect.Make(EMPTY_SUBSTRATE_SKSL);
 const NO_REGION={x:0,y:0,width:0,height:0};
 export type VolumeSurfaceProps={
-  physics:LiquidPhysics; children:ReactNode; enabled?:boolean; lighting?:boolean; debug?:boolean;
+  physics:LiquidPhysics; children:ReactNode; enabled?:boolean; lighting?:boolean; debug?:boolean; contentFollow?:boolean;
   /** Rigid native insert excluded from both deformation and texture sampling. */
   protectedCircle?:readonly [number,number,number];
   /** Controlled live scene if supplied. Otherwise an optional native backdrop is copied at layout. */
@@ -28,32 +29,33 @@ export type VolumeSurfaceProps={
  * Canvas has one persistent path and contributes only a local signed difference.
  * No pressure-dependent View opacity, per-press capture or React drag updates.
  */
-export function VolumeSurface({physics,children,enabled=true,lighting=true,debug=false,substrate,backdropTarget,onReady,protectedCircle,resourceRevision}:VolumeSurfaceProps){
+export function VolumeSurface({physics,children,enabled=true,lighting=true,debug=false,substrate,backdropTarget,onReady,protectedCircle,resourceRevision,contentFollow=true}:VolumeSurfaceProps){
   const performance=useGlassPerformance();
   const selectedEffect=performance.identity?identityEffect:performance.optimizedShader?(fastEffect??effect):effect;
   const density=PixelRatio.get();
   const {width,height,pressure,contactX,contactY,releaseX,releaseY,reduceMotion}=physics;
   const optical=useSharedValue<OpticalFrame>({x:width/2,y:height/2,p:0,reduced:false});
-  const prime=useCallback((material:SkImage,backdrop:SkImage|null)=>{
+  const prime=useCallback(async(material:SkImage,backdrop:SkImage|null)=>{
     const start=Date.now();
-    const completed=prepareOpticalPipeline(selectedEffect,empty,material,backdrop,width,height,protectedCircle);
+    const completed=await runOnUIAsync(prepareOpticalPipeline,selectedEffect,empty,material,backdrop,width,height,protectedCircle);
     console.log('[premium-gpu-ready]',JSON.stringify({completed,preparationMs:Date.now()-start}));
   },[selectedEffect,width,height,protectedCircle]);
   const {source,host,cache,prepare}=useNativeMaterialCache(physics,backdropTarget,resourceRevision,prime);
   const image=cache?.material,underlay=substrate??cache?.backdrop;
   const available=!!(image&&selectedEffect&&empty);
   useEffect(()=>{onReady?.(available);},[onReady,available]);
-  const region=useDerivedValue(()=>performance.localDraw
+  const localRegion=useDerivedValue(()=>performance.localDraw
     ? contactRect(performance.coalesce?optical.value.x:contactX.value+releaseX.value,
         performance.coalesce?optical.value.y:contactY.value+releaseY.value,width,height,VOLUME.radius,
         enabled?(performance.coalesce?optical.value.p:pressure.value):0,density)
     : NO_REGION,[performance.localDraw,performance.coalesce,width,height,enabled,density]);
+  const region=localRegion;
   const uniforms=useDerivedValue(()=>({
     protectedCircle:protectedCircle?[...protectedCircle]:[0,0,0],
     size:[width,height],touch:performance.coalesce?[optical.value.x,optical.value.y]:[contactX.value+releaseX.value,contactY.value+releaseY.value],
-    pressure:enabled?(performance.coalesce?optical.value.p:pressure.value):0,depth:((performance.coalesce?optical.value.reduced:reduceMotion.value)?VOLUME.reducedDepth:VOLUME.depth)*Math.max(0,Math.min(2,physics.intensity)),
+    pressure:enabled?(performance.coalesce?optical.value.p:pressure.value):0,depth:((performance.coalesce?optical.value.reduced:reduceMotion.value)?VOLUME.reducedDepth:VOLUME.depth)*Math.max(0,Math.min(1,physics.intensity)),
     radius:VOLUME.radius,lighting:lighting&&performance.lighting?1:0,proof:substrate?1:underlay?2:0,debug:debug?1:0,
-  }),[width,height,enabled,lighting,debug,substrate,underlay,physics.intensity,protectedCircle,performance.lighting,performance.coalesce]);
+  }),[width,height,enabled,lighting,debug,substrate,underlay,physics.intensity,protectedCircle,performance.lighting,performance.coalesce,contentFollow,performance.contentFollow]);
   const paint=<Shader source={selectedEffect!} uniforms={uniforms}>
         <ImageShader image={image!} fit="fill" rect={{x:0,y:0,width,height}} tx="clamp" ty="clamp"
           sampling={{filter:FilterMode.Linear,mipmap:MipmapMode.None}}/>

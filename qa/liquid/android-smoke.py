@@ -139,6 +139,7 @@ def run_path(name,events,shots=None):
         result[label]=capture(label)
     proc.wait(timeout=max(10,events[-1][0]/1000+5))
     assert proc.returncode==0, f'Input injection failed: {name}'
+    proc.stdout.close() if proc.stdout else None
     time.sleep(.6)
     return result
 
@@ -194,11 +195,13 @@ run_path('I-repeat-quick-tap',path_events([point(.44,.34)]*2,130));counter(9)
 run_path('J-repeat-quick-tap',path_events([point(.72,.45)]*2,150));counter(10)
 final=capture('final-rest')
 switch('Respuesta háptica')
+switch('Acompañamiento del contenido')
 switch('Iluminación de contacto');geometry_rest=capture('geometry-rest')
 geometry=run_path('K-geometry-without-lighting',path_events([point(.55,.45)]*2,2300),[(1.1,'geometry-hold')]);counter(11)
 switch('Iluminación de contacto')
 run_path('L-material-alone-drag',path_events(linear(point(.2,.4),point(.8,.4)),2200,300,300));counter(12)
 switch('Respuesta háptica')
+switch('Acompañamiento del contenido')
 switch('Forzar movimiento reducido')
 run_path('M-reduced-motion',path_events([point(.55,.45)]*2,1100));counter(13)
 switch('Forzar movimiento reducido')

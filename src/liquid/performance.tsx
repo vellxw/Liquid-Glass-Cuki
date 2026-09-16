@@ -1,18 +1,12 @@
 import { createContext, useContext } from 'react';
 
-/** Fixed per experiment/scene. Never changed automatically in the middle of a gesture.
- * Diagnostic variants are NOT quality tiers and are never selected by the product. */
-export type GlassPerformanceMode = 'optimized' | 'baseline' | 'roi-only' | 'cache-only' |
-  'frame-coalesced' | 'shader-only' | 'no-blur' | 'no-lighting' | 'no-content' | 'identity';
-export type GlassPerformance = Readonly<{
-  coalesce: boolean; localDraw: boolean; cacheArtwork: boolean; optimizedShader: boolean;
-  nativeBlur: boolean; lighting: boolean; contentFollow: boolean; identity: boolean;
-}>;
-const base: GlassPerformance = {
-  coalesce:false, localDraw:false, cacheArtwork:false, optimizedShader:false,
-  nativeBlur:true, lighting:true, contentFollow:true, identity:false,
+export type GlassPerformanceMode = 'baseline'|'optimized'|'frame-coalesced'|'shader-only'|'roi-only'|'cache-only'|'no-blur'|'no-lighting'|'no-content'|'identity';
+export type GlassPerformance = {
+  localDraw:boolean; optimizedShader:boolean; cacheArtwork:boolean; coalesce:boolean;
+  nativeBlur:boolean; lighting:boolean; contentFollow:boolean; identity:boolean;
 };
-const optimized: GlassPerformance = {...base, localDraw:true, cacheArtwork:false, optimizedShader:true};
+const base:GlassPerformance={localDraw:false,optimizedShader:false,cacheArtwork:false,coalesce:false,nativeBlur:true,lighting:true,contentFollow:true,identity:false};
+const optimized:GlassPerformance={...base,localDraw:true,optimizedShader:true};
 export const GLASS_PERFORMANCE: Readonly<Record<GlassPerformanceMode, GlassPerformance>> = {
   baseline:base, optimized,
   'frame-coalesced':{...optimized, coalesce:true},
@@ -40,8 +34,8 @@ export function contactRect(cx:number,cy:number,width:number,height:number,radiu
   if(pressure===0)return {x:0,y:0,width:Math.min(width,1/d),height:Math.min(height,1/d)};
   const support=radius*1.5+1/d;
   const x=Math.max(0,Math.floor((cx-support)*d)/d);
-  const y=Math.max(0,Math.floor((cy-support)*d)/d);
+  const y=0; // face compression spans both interior edges, not a radial light patch
   const r=Math.min(width,Math.ceil((cx+support)*d)/d);
-  const b=Math.min(height,Math.ceil((cy+support)*d)/d);
+  const b=height;
   return {x,y,width:Math.max(0,r-x),height:Math.max(0,b-y)};
 }
