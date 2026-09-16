@@ -19,13 +19,20 @@ jobs:
       - run: npx expo install --check
       - run: npm run typecheck
       - run: npm run check
-      - run: node qa/register/check.cjs
-      - run: npm run check:liquid
-      - run: node qa/liquid/pipeline-check.cjs
-      - run: node qa/liquid/overlay-check.cjs
-      - run: node qa/performance/check.cjs
-      - run: node qa/premium/check.cjs
-      - run: node qa/face/check.cjs
-      - run: python -m unittest discover -s qa/performance -p 'test_*.py' -v
+      - run: npm run check:register
+      - run: npm run check:button
       - run: npm run export:android
       - run: npm run export:ios
+      - name: Archive exact tested inputs
+        if: always()
+        run: |
+          mkdir -p qa/button/output
+          git archive --format=zip --prefix=Liquid-Glass-Cuki/ -o qa/button/output/source.zip HEAD
+          cp package-lock.json qa/button/output/installed-package-lock.json || true
+          git rev-parse HEAD > qa/button/output/source-commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: standard-button-checks
+          path: qa/button/output/
+          retention-days: 14

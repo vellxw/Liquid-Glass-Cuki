@@ -6,29 +6,19 @@ import { GLASS, HOME_REFERENCE, PX } from './tokens';
 import { HomeIcon } from './HomeIcon';
 import { HomeText } from './HomeText';
 import { RegisterButtonMaterial } from './RegisterButtonMaterial';
-import { LocalRegisterArtwork } from './LocalRegisterArtwork';
-import type { LiquidPhysics } from '../liquid/types';
 export type GlassButtonProps = {
-  /** With physics the artwork is passive; LiquidPressable owns input and accessibility. */
-  interaction?: LiquidPhysics;
-  /** Ablation: disables ALL visual pressure response, never leaves a rigid tap behind. */
-  opticsEnabled?: boolean;
-  contentFollow?: boolean; lighting?: boolean; debug?: boolean; proofGrid?: boolean; onSurfaceReady?: (ready: boolean) => void;
   variant: 'primary' | 'secondary'; label: string; scale: number;
-  onPress?: () => void; disabled?: boolean; fontFamily?: string;
+  onPress?: () => void; disabled?: boolean; busy?: boolean; fontFamily?: string;
   blurTarget?: RefObject<View | null>; style?: StyleProp<ViewStyle>; testID?: string;
 };
 /** Separate from the original navigation material: no changes to bottom-nav sources. */
 export function GlassButton({ variant, label, scale, onPress, disabled = false,
-  fontFamily, blurTarget, style, testID, interaction, opticsEnabled = true, debug = false, proofGrid = false, contentFollow = true, lighting = true, onSurfaceReady }: GlassButtonProps) {
+  fontFamily, blurTarget, style, testID, busy = false }: GlassButtonProps) {
   const primary = variant === 'primary', w = primary ? 460 : 297, h = primary ? 122 : 79;
   const s = PX * scale, radius = h * s / 2;
   const id = `button${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   const url = (name: string) => `url(#${id}-${name})`;
   const canBlur = Platform.OS !== 'android' || !!blurTarget;
-  if(primary && interaction) return <LocalRegisterArtwork physics={interaction} scale={scale}
-    label={label} fontFamily={fontFamily} blurTarget={blurTarget} enabled={opticsEnabled}
-    debug={debug} proofGrid={proofGrid} contentFollow={contentFollow} lighting={lighting} onReady={onSurfaceReady}/>;
   const artwork = <>
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: radius }]}>
       {canBlur && <BlurView intensity={GLASS.blur} tint="dark" blurTarget={blurTarget}
@@ -65,7 +55,7 @@ export function GlassButton({ variant, label, scale, onPress, disabled = false,
       width={primary ? 254 : 134} size={primary ? 34 : 26} scale={scale} fontFamily={fontFamily}>{label}</HomeText>
   </>;
   return <Pressable testID={testID} accessibilityRole="button" accessibilityLabel={label}
-    accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
+    accessibilityState={{ disabled: disabled || busy, busy }} disabled={disabled || busy} onPress={onPress}
     style={({ pressed }) => [{ width: w*s, height: h*s, borderRadius: radius }, style,
-      { opacity: disabled ? 0.45 : pressed ? GLASS.pressedOpacity : 1 }]}>{artwork}</Pressable>;
+      { opacity: disabled || busy ? 0.45 : pressed ? GLASS.pressedOpacity : 1 }]}>{artwork}</Pressable>;
 }

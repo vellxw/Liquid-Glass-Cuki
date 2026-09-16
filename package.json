@@ -1,6 +1,6 @@
 {
   "name": "liquid-glass-cuki",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "main": "index.ts",
   "scripts": {
@@ -16,8 +16,8 @@
     "check:home": "node qa/home/check.cjs",
     "export:ios": "expo export --platform ios",
     "export:android": "expo export --platform android",
-    "check:liquid": "node qa/liquid/check.cjs",
-    "check:register": "node qa/register/check.cjs"
+    "check:register": "node qa/register/check.cjs",
+    "check:button": "node qa/button/check.cjs"
   },
   "dependencies": {
     "expo": "~57.0.17",
@@ -27,11 +27,7 @@
     "react-native-svg": "15.15.4",
     "@react-native-masked-view/masked-view": "0.3.2",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-reanimated": "4.5.1",
-    "react-native-worklets": "0.10.1",
-    "react-native-gesture-handler": "~2.32.0",
-    "expo-haptics": "~57.0.3",
-    "@shopify/react-native-skia": "2.6.2"
+    "@expo/ui": "~57.0.18"
   },
   "devDependencies": {
     "@types/react": "~19.2.0",

@@ -42,7 +42,7 @@ function createLoader(options = {}) {
       Value: class { constructor(value) { this.value = value; } },
       multiply: (value, factor) => ({ value, factor }), event: () => () => {} },
     PixelRatio: { get: () => 3 },
-    Platform: { OS: 'ios', select: options => options.ios ?? options.default },
+    Platform: { OS: 'ios', Version: '26.0', select: options => options.ios ?? options.default },
     StyleSheet: {
       create: value => value,
       absoluteFill: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
@@ -59,36 +59,10 @@ function createLoader(options = {}) {
     Object.defineProperty(value, '__updater', { value: updater, enumerable: false });
     return value;
   };
-  const reanimated = { __esModule: true, default: { View: 'AnimatedView', createAnimatedComponent: c => c },
-    createAnimatedComponent: c => c, ReduceMotion: { Never: 'never', System: 'system' },
-    useSharedValue: value => { const sv = { value, modify: fn => { sv.value = fn(sv.value); } }; sharedValues.push(sv); return sv; },
-    useReducedMotion: () => !!options.reduced,
-    Easing:{out:x=>x,cubic:x=>x*x*x},
-    useDerivedValue: fn => ({get value(){return fn();}}),
-    useAnimatedProps: snapshot, useAnimatedStyle: snapshot,
-    useAnimatedReaction: () => {}, useFrameCallback: () => ({ setActive() {} }),
-    cancelAnimation: () => {},
-    withSpring: (target, config, complete) => { animations.push({ kind: 'spring', target, config, complete }); return target; },
-    withTiming: (target, config, complete) => { animations.push({ kind: 'timing', target, config, complete }); return target; },
-  };
-  const rngh = { GestureDetector: 'GestureDetector', GestureHandlerRootView: 'GestureHandlerRootView',
-    Gesture: { Native(){return {};}, Pan() {
-      const g = { config: {}, handlers: {} };
-      for (const k of ['enabled','minDistance','maxPointers','shouldCancelWhenOutside','simultaneousWithExternalGesture','manualActivation']) g[k] = v => { g.config[k]=v; return g; };
-      for (const k of ['onBegin','onTouchesDown','onTouchesMove','onUpdate','onEnd','onFinalize']) g[k] = v => { g.handlers[k]=v; return g; };
-      gestures.push(g); return g;
-    } },
-  };
   const externals = {
     react,
-    '@shopify/react-native-skia': { Skia:{RuntimeEffect:{Make:code=>({code})}},
-      Canvas:'SkiaCanvas', Fill:'SkiaFill', Group:'SkiaGroup', ImageShader:'ImageShader',Shader:'SkiaShader',
-      makeImageFromView:()=>Promise.resolve({width:()=>460,height:()=>122}) },
-    'react-native-reanimated': reanimated,
-    'react-native-gesture-handler': rngh,
-    'react-native-worklets': { scheduleOnRN: (fn,...args) => options.queueRN ? rnJobs.push(()=>fn(...args)) : fn(...args) },
-    'expo-haptics': { AndroidHaptics: { Segment_Frequent_Tick:'tick', Virtual_Key:'key' }, ImpactFeedbackStyle: { Soft:'soft', Light:'light' },
-      impactAsync: v => { haptics.push(v); return Promise.resolve(); }, performAndroidHapticsAsync: v => { haptics.push(v); return Promise.resolve(); } },
+    '@expo/ui/swift-ui': { Host:'SwiftUIHost', Button:'SwiftUIButton', HStack:'SwiftUIHStack', Image:'SwiftUIImage', Text:'SwiftUIText', ProgressView:'SwiftUIProgress' },
+    '@expo/ui/swift-ui/modifiers': Object.fromEntries(['buttonStyle','buttonBorderShape','controlSize','disabled','font','foregroundStyle','frame','lineLimit','minimumScaleFactor','accessibilityLabel','accessibilityIdentifier','accessibilityValue'].map(name=>[name,(...args)=>({name,args})])),
     'react-native': native,
     'react-native-svg': svg,
     'expo-blur': { BlurView: 'BlurView', BlurTargetView: 'BlurTargetView' },
