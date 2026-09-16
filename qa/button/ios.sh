@@ -48,6 +48,15 @@ for i in $(seq 1 30); do
 done
 grep -q 'packager-status:running' "$OUT/metro-status.txt"
 curl -fsS -H 'expo-platform: ios' -H 'accept: application/expo+json' http://127.0.0.1:8081 > "$OUT/ios-manifest.json"
+# The CLI downloads Expo Go asynchronously. A listening Metro does not imply
+# that the simulator has installed the client yet; never open an unhandled URL.
+APP_READY=0
+for i in $(seq 1 120); do
+  if xcrun simctl get_app_container "$UDID" host.exp.Exponent app > "$OUT/expo-go-container.txt" 2>/dev/null; then APP_READY=1; break; fi
+  kill -0 "$metro"
+  sleep 2
+done
+if [ "$APP_READY" != "1" ]; then echo 'Expo Go installation did not complete' >&2; exit 1; fi
 xcrun simctl openurl "$UDID" 'exp://127.0.0.1:8081'
 sleep 4
 xcrun simctl io "$UDID" recordVideo --codec=h264 "$OUT/ios-button.mp4" > "$OUT/record.log" 2>&1 &
