@@ -1,12 +1,13 @@
-/** Logical dp; implementation calibration, not physical measurements from the video. */
+import { PREMIUM_PRESS as P } from './premiumPress.tokens';
 export const VOLUME = {
-  radius:42, shoulderRatio:1.5, depth:2.45, reducedDepth:0.32,
-  pinStart:2.4, pinEnd:8.0, bevelHeight:2.8, bevelWidth:10,
-  projection:0.78, refraction:9.5, maxRefraction:3.4,
-  contentTravel:0.9, entrance:86,
+  radius:P.radius, shoulderRatio:P.supportRatio, depth:P.depth, reducedDepth:P.reducedDepth,
+  pinStart:P.pinStart, pinEnd:P.pinEnd, bevelHeight:P.bevelHeight, bevelWidth:P.bevelWidth,
+  projection:P.projection, refraction:P.refraction, maxRefraction:P.maxRefraction,
+  contentTravel:0, entrance:P.entryMs,
 } as const;
 const sat=(x:number)=>{ 'worklet'; return Math.max(0,Math.min(1,x)); };
-/** Shared compact, C2 contact kernel: inner depression plus visible shoulder. */
+/** Negative height and smooth analytic slope. Optical displacement also compresses
+ * BOTH interior bevels toward the middle. The outer silhouette remains pinned. */
 export function volumeSample(x:number,y:number,cx:number,cy:number,w:number,h:number,p:number,depth:number=VOLUME.depth){
   'worklet';
   const rr=h/2, ex=x-Math.max(rr,Math.min(w-rr,x)),ey=y-rr;
@@ -20,14 +21,15 @@ export function volumeSample(x:number,y:number,cx:number,cy:number,w:number,h:nu
   const nx=el>1e-6?-ex/el:0,ny=el>1e-6?-ey/el:0;
   const z=-depth*p*k*pin;
   const gx=-depth*p*(dk*dx*pin+k*dPin*nx),gy=-depth*p*(dk*dy*pin+k*dPin*ny);
-  let sx=gx*VOLUME.refraction*pin, sy=(gy*VOLUME.refraction+z*VOLUME.projection)*pin;
+  const band=Math.max(0,1-edge/18);
+  // Inverse sampling moves the top reflection downward and bottom upward.
+  const squeeze=P.bevelTravel*(depth/P.depth)*p*k*pin*band*band*Math.sign(ey);
+  let sx=gx*VOLUME.refraction*pin,sy=(gy*VOLUME.refraction+z*VOLUME.projection)*pin+squeeze;
   const limit=VOLUME.maxRefraction/Math.sqrt(VOLUME.maxRefraction**2+sx*sx+sy*sy);
   sx*=limit;sy*=limit;
   return {z,gx,gy,sx,sy,k,pin,edge};
 }
-export function contentDepth(anchorX:number,anchorY:number,cx:number,cy:number,pressure:number,reduced=false){
-  'worklet';
-  const d2=(anchorX-cx)**2+(anchorY-cy)**2;
-  // Crisp content moves as a plate, never a mesh; only a sub-dp follow-through.
-  return Math.min(1,Math.max(0,pressure))*(reduced?.12:VOLUME.contentTravel)*Math.exp(-d2/(58*58));
+/** Compatibility helper: labels and icons are deliberately fixed in this version. */
+export function contentDepth(_x:number,_y:number,_cx:number,_cy:number,_p:number,_reduced=false){
+  'worklet'; return 0;
 }

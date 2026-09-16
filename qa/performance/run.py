@@ -120,7 +120,7 @@ visual={mode:{state:mae(images['baseline-'+state],images[mode+'-'+state])for sta
 # Keep input normal and optics full-quality while checking long-running behavior.
 select('optimized');status('endurance-start')
 endurance=[]
-for i in range(6):
+for i in range(20):
     adb('shell','dumpsys','SurfaceFlinger','--timestats','-clear','-enable')
     # 30 seconds of repeated native contacts, one stable pointer sequence at a time.
     data=[]

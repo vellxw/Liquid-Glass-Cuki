@@ -4,6 +4,7 @@ on:
     paths:
       - 'src/liquid/**'
       - 'src/home/LocalRegisterArtwork.tsx'
+      - 'qa/premium/**'
       - 'qa/performance/**'
       - '.github/workflows/performance-release.yml'
   workflow_dispatch:

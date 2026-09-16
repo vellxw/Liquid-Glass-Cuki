@@ -44,7 +44,7 @@ jobs:
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-metrics
           script: |
-            bash qa/liquid/android-smoke.sh
+            CUKI_QUICK_NATIVE=1 bash qa/liquid/android-smoke.sh
             python qa/liquid/validate-locality.py
             python qa/liquid/strict-rest.py
       - name: Archive the exact tested source

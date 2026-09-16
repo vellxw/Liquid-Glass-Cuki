@@ -44,7 +44,7 @@ export function RegisterPhysicsLab(){
   const {width}=useWindowDimensions(),insets=useSafeAreaInsets();
   const target=useRef<View|null>(null);
   const [commits,setCommits]=useState(0),[ready,setReady]=useState(false);
-  const [mechanical,setMechanical]=useState(true);
+  const [hapticsEnabled,setHapticsEnabled]=useState(true);
   const [showPerformance,setShowPerformance]=useState(false);
   const [showHome,setShowHome]=useState(false);
   const [legacy,setLegacy]=useState(false),[lighting,setLighting]=useState(true);
@@ -60,15 +60,15 @@ export function RegisterPhysicsLab(){
   return <View style={styles.screen}>
     <BlurTargetView ref={target} style={StyleSheet.absoluteFill}/>
     <ScrollView contentContainerStyle={{paddingTop:insets.top+24,paddingHorizontal:16,paddingBottom:insets.bottom+80}}>
-      <View style={styles.row}><Text style={styles.title}>Registrar · vidrio local</Text>
+      <View style={styles.row}><Text style={styles.title}>Registrar · press premium</Text>
         <Pressable testID="lab-open-perf" accessibilityRole="button" accessibilityLabel="Medir rendimiento" onPress={()=>setShowPerformance(true)} style={{padding:8,marginRight:64}}><Text style={styles.text}>A/B</Text></Pressable></View>
-      <Text style={styles.note}>Presiona y arrastra. El vidrio cede localmente; la silueta no se escala. El estado de reposo usa la misma ruta de render.</Text>
+      <Text style={styles.note}>Botón fijo · Black Glass. Presiona, mantén y suelta. El texto y el círculo no se mueven; solo cede el interior.</Text>
       <View style={styles.bench}>
         {legacy ? <GlassButton key="original-native" variant="primary" label="Registrar +" scale={scale} blurTarget={target}/> : <LiquidPressable key="volume-native" width={230*scale} height={61*scale} label="Registrar +" testID="lab-register"
-          disabled={disabled} forceReducedMotion={reduced} onPress={()=>setCommits(v=>v+1)} onPhase={onPhase}>
+          disabled={disabled} haptics={hapticsEnabled?'contact-and-commit':'off'} forceReducedMotion={reduced} onPress={()=>setCommits(v=>v+1)} onPhase={onPhase}>
           {physics=><>
             <GlassButton variant="primary" label="Registrar +" scale={scale} blurTarget={target} interaction={physics}
-              lighting={lighting} opticsEnabled={enabled} contentFollow={mechanical} debug={debug} proofGrid={grid} onSurfaceReady={onReady}/>
+              lighting={lighting} opticsEnabled={enabled} contentFollow={false} debug={debug} proofGrid={grid} onSurfaceReady={onReady}/>
             {debug && <Probe physics={physics} onReport={onReport} debug={debug}/>}
           </>}
         </LiquidPressable>}
@@ -80,7 +80,7 @@ export function RegisterPhysicsLab(){
       <Text style={styles.note}>Tap · Hold 1 s · Drag horizontal · Círculo · Drag vertical · Arrastrar afuera para cancelar</Text>
       <View style={styles.row}><Text style={styles.text}>Deformación local</Text><Switch value={enabled} onValueChange={setEnabled} accessibilityLabel="Deformación local"/></View>
       <View style={styles.row}><Text style={styles.text}>Cuadrícula de refracción</Text><Switch value={grid} onValueChange={setGrid} accessibilityLabel="Cuadrícula de refracción"/></View>
-      <View style={styles.row}><Text style={styles.text}>Contenido nítido · 0,9 dp</Text><Switch value={mechanical} onValueChange={setMechanical} accessibilityLabel="Acompañamiento del contenido"/></View>
+      <View style={styles.row}><Text style={styles.text}>Respuesta háptica</Text><Switch value={hapticsEnabled} onValueChange={setHapticsEnabled} accessibilityLabel="Respuesta háptica"/></View>
       <View style={styles.row}><Text style={styles.text}>Iluminación de contacto</Text><Switch value={lighting} onValueChange={setLighting} accessibilityLabel="Iluminación de contacto"/></View>
       <View style={styles.row}><Text style={styles.text}>Referencia estática original</Text><Switch value={legacy} onValueChange={setLegacy} accessibilityLabel="Referencia estática"/></View>
       <View style={styles.row}><Text style={styles.text}>Debug de contacto</Text><Switch value={debug} onValueChange={setDebug} accessibilityLabel="Debug de contacto"/></View>

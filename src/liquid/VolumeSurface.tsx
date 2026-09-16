@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, type ReactNode, type RefObject } from 'react';
 import { PixelRatio, StyleSheet, View } from 'react-native';
 import { Canvas, Fill, Rect, Shader, ImageShader, Skia, FilterMode, MipmapMode, type SkImage } from '@shopify/react-native-skia';
 import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
@@ -7,6 +7,7 @@ import { OPTIMIZED_VOLUME_SKSL, IDENTITY_VOLUME_SKSL } from './optimizedShader';
 import { contactRect, useGlassPerformance } from './performance';
 import { OpticalFrameCoordinator, type OpticalFrame } from './useOpticalFrame';
 import { VOLUME } from './volumeField';
+import { prepareOpticalPipeline } from './prepareOpticalPipeline';
 import { useNativeMaterialCache } from './useNativeMaterialCache';
 import type { LiquidPhysics } from './types';
 
@@ -20,19 +21,25 @@ export type VolumeSurfaceProps={
   /** Rigid native insert excluded from both deformation and texture sampling. */
   protectedCircle?:readonly [number,number,number];
   /** Controlled live scene if supplied. Otherwise an optional native backdrop is copied at layout. */
+  resourceRevision?:unknown;
   substrate?:SkImage|null; backdropTarget?:RefObject<View|null>; onReady?:(ready:boolean)=>void;
 };
 /** Native material is never replaced, even after cache preparation. The optical
  * Canvas has one persistent path and contributes only a local signed difference.
  * No pressure-dependent View opacity, per-press capture or React drag updates.
  */
-export function VolumeSurface({physics,children,enabled=true,lighting=true,debug=false,substrate,backdropTarget,onReady,protectedCircle}:VolumeSurfaceProps){
+export function VolumeSurface({physics,children,enabled=true,lighting=true,debug=false,substrate,backdropTarget,onReady,protectedCircle,resourceRevision}:VolumeSurfaceProps){
   const performance=useGlassPerformance();
   const selectedEffect=performance.identity?identityEffect:performance.optimizedShader?(fastEffect??effect):effect;
   const density=PixelRatio.get();
   const {width,height,pressure,contactX,contactY,releaseX,releaseY,reduceMotion}=physics;
   const optical=useSharedValue<OpticalFrame>({x:width/2,y:height/2,p:0,reduced:false});
-  const {source,host,cache,prepare}=useNativeMaterialCache(physics,backdropTarget);
+  const prime=useCallback((material:SkImage,backdrop:SkImage|null)=>{
+    const start=Date.now();
+    const completed=prepareOpticalPipeline(selectedEffect,empty,material,backdrop,width,height,protectedCircle);
+    console.log('[premium-gpu-ready]',JSON.stringify({completed,preparationMs:Date.now()-start}));
+  },[selectedEffect,width,height,protectedCircle]);
+  const {source,host,cache,prepare}=useNativeMaterialCache(physics,backdropTarget,resourceRevision,prime);
   const image=cache?.material,underlay=substrate??cache?.backdrop;
   const available=!!(image&&selectedEffect&&empty);
   useEffect(()=>{onReady?.(available);},[onReady,available]);

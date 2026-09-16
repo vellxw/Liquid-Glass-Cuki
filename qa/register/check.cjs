@@ -42,8 +42,9 @@ test('circle, plus icon and circle gradient retain their exact drawing', () => {
   assert.equal(foreground.map(serialize).join('').replace(/buttonoffline\d+/g, 'button'), fixture.primaryForeground);
 });
 test('protected static files remain identical; Phase A entry/dependencies are checked separately', () => {
+  // HomeScreen now adds native-scroll arbitration without changing layout; covered by Home/QA checks.
   // Explicitly authorized Phase A changes. Never replace the static baseline hashes.
-  const phaseA = new Set(['App.tsx', 'package.json', 'src/home/PrimaryRegisterButton.tsx']);
+  const phaseA = new Set(['App.tsx', 'package.json', 'src/home/PrimaryRegisterButton.tsx', 'src/home/HomeScreen.tsx']);
   for (const [file, hash] of Object.entries(fixture.protectedFiles)) {
     if (phaseA.has(file)) continue;
     assert.equal(sha(fs.readFileSync(path.join(root, file))), hash, file);

@@ -1,5 +1,7 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Animated, StatusBar, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { PremiumScrollContext } from '../liquid/PremiumScrollScope';
 import { BlurTargetView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNavGlass, type BottomNavId } from '../bottom-nav';
@@ -31,6 +33,11 @@ export function HomeScreen({
   const insets = useSafeAreaInsets();
   const layout = getHomeLayout(width, height, insets);
   const blurTarget = useRef<View | null>(null);
+  const [resourceEpoch,setResourceEpoch]=useState(0);
+  const nativeScroll=useMemo(()=>Gesture.Native(),[]);
+  const resourceRevision=useMemo(()=>({assets,resourceEpoch,width,height}),[assets,resourceEpoch,width,height]);
+  const scrollScope=useMemo(()=>({gesture:nativeScroll,enabled:layout.needsScroll,resourceRevision}),[nativeScroll,layout.needsScroll,resourceRevision]);
+  const refreshBackdrop=useCallback(()=>setResourceEpoch(value=>value+1),[]);
   const scrollY = useRef(new Animated.Value(0)).current;
   const [internalTab, setInternalTab] = useState<BottomNavId>('hoy');
   const selected = activeTab ?? internalTab;
@@ -63,6 +70,8 @@ export function HomeScreen({
         </Animated.View>
       </BlurTargetView>
 
+      <PremiumScrollContext.Provider value={scrollScope}>
+      <GestureDetector gesture={nativeScroll}>
       <Animated.ScrollView
         testID="home-scroll"
         style={{ position: 'absolute', left: layout.canvasLeft, top: layout.top, width: layout.canvasWidth, height: layout.scrollHeight }}
@@ -74,6 +83,8 @@ export function HomeScreen({
         bounces={false}
         overScrollMode="never"
         scrollEnabled={layout.needsScroll}
+        onScrollEndDrag={refreshBackdrop}
+        onMomentumScrollEnd={refreshBackdrop}
         scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
       >
@@ -84,6 +95,8 @@ export function HomeScreen({
           onOpenNutrition={onOpenNutrition} onAvatarPress={onAvatarPress}
         />
       </Animated.ScrollView>
+      </GestureDetector>
+      </PremiumScrollContext.Provider>
 
       <View pointerEvents="box-none" testID="home-nav-dock"
         style={{ position: 'absolute', left: layout.canvasLeft, bottom: layout.bottom, width: layout.canvasWidth, height: layout.navHeight }}>

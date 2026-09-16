@@ -150,6 +150,11 @@ switch('Referencia estática');time.sleep(1.5)
 assert find(hierarchy(),'lab-register') is None,'Static baseline still contains the interaction renderer'
 original=capture('original-svg-rest')
 switch('Referencia estática');time.sleep(.5)
+for _ in range(30):
+    ready_node=find(hierarchy(),'lab-ready')
+    if ready_node is not None and ready_node.get('text')=='Motor: listo':break
+    time.sleep(.2)
+else:raise RuntimeError('Restored material was not ready before the first contact')
 # Persistent renderer is already visible in REST. No discarded warmup contact.
 
 # Android damage-based screenrecord contains actual native frames, not a synthesized tween.
@@ -160,7 +165,7 @@ record=sp.Popen(['adb','shell','screenrecord','--bit-rate','6000000','--time-lim
 video_origin=time.monotonic();stages=[]
 time.sleep(.8)
 rest=capture('rest')
-run_path('A-quick-tap',path_events([point(.52,.38)]*2,90));counter(1)
+run_path('A-quick-tap',[(0,0,*point(.52,.38)),(90,1,*point(.52,.38))]);counter(1)
 shots=run_path('B-hold-1-second',path_events([point(.50,.38)]*2,3300),[(.8,'hold-1'),(1.9,'hold-2')])
 pressed=shots['hold-1'];stable=mae(pressed,shots['hold-2']);counter(2)
 settled=capture('settled')
@@ -176,7 +181,8 @@ run_path('D-small-circle',path_events(circle,3000,400,400));counter(5)
 run_path('E-short-vertical',path_events(linear(point(.62,.30),point(.62,.70))+linear(point(.62,.70),point(.62,.30)),2400,300,400));counter(6)
 run_path('F-cancel-outside',path_events(linear(point(.76,.50),(x2+80,y)),1500,200,300));counter(6)
 cancelled=capture('cancelled')
-# Refraction proof uses a diagnostic grid in the sampled native material, not letters.
+run_path('F2-cancel-reentry',path_events(linear(point(.72,.5),(x2+70,y),41)+linear((x2+70,y),point(.55,.5),41),1700));counter(6)
+# Refraction proof uses a controlled lower layer, never native text.
 switch('Cuadrícula de refracción');grid_rest=capture('grid-rest')
 proof=run_path('G-refraction-grid',path_events(linear(point(.42,.50),point(.77,.50)),2400,1700,1300),[(1.0,'grid-left'),(4.6,'grid-right')]);counter(7)
 switch('Cuadrícula de refracción')
@@ -187,18 +193,19 @@ switch('Deformación local')
 run_path('I-repeat-quick-tap',path_events([point(.44,.34)]*2,130));counter(9)
 run_path('J-repeat-quick-tap',path_events([point(.72,.45)]*2,150));counter(10)
 final=capture('final-rest')
-switch('Acompañamiento del contenido')
+switch('Respuesta háptica')
 switch('Iluminación de contacto');geometry_rest=capture('geometry-rest')
 geometry=run_path('K-geometry-without-lighting',path_events([point(.55,.45)]*2,2300),[(1.1,'geometry-hold')]);counter(11)
 switch('Iluminación de contacto')
 run_path('L-material-alone-drag',path_events(linear(point(.2,.4),point(.8,.4)),2200,300,300));counter(12)
-switch('Acompañamiento del contenido')
+switch('Respuesta háptica')
 switch('Forzar movimiento reducido')
 run_path('M-reduced-motion',path_events([point(.55,.45)]*2,1100));counter(13)
 switch('Forzar movimiento reducido')
 switch('Deshabilitar Registrar')
 run_path('N-disabled',path_events([point(.55,.45)]*2,400));counter(13)
 switch('Deshabilitar Registrar')
+run_path('O-touch-circle',path_events([point(118/460,.5)]*2,1800),[(1.0,'circle-hold')]);counter(14)
 
 # Finish recording without waiting for its upper limit.
 adb('shell','pkill','-2','screenrecord');record.wait(timeout=10)
@@ -212,7 +219,7 @@ result={'native':'Expo Go / production JavaScript / Android API35 / software GPU
  'leftToRightMAE':mae(shots['drag-left'],shots['drag-right']),
  'gridRestToHoldMAE':mae(grid_rest,proof['grid-left']),
  'localOffRestToHoldMAE':mae(off_rest,off['off-hold']),
- 'cancelRestMAE':mae(rest,cancelled),'finalRestMAE':mae(rest,final),'commits':13,
+ 'cancelRestMAE':mae(rest,cancelled),'finalRestMAE':mae(rest,final),'commits':14,
  'originalRestMAE':mae(original,rest),'geometryOnlyMAE':mae(geometry_rest,geometry['geometry-hold']),
  'warmup':'none: first contact is recorded; renderer already draws in REST',
  'pointerInput':'continuous Android MotionEvent stream; no playback animation',

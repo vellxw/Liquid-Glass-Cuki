@@ -34,3 +34,20 @@ assert out['locality']['outsideContactMAE']==0
 assert out['geometryWithoutLightingMAE']>.15
 assert all(out['fps'].values()), 'Missing presentation measurement'
 print('STRICT_NATIVE_REST_PASS: original/rest, hold, release, cancel, ablation and fixed rim exact on this run. Not a physical haptic/iOS/perceptual approval.')
+
+# Fixed foreground contract: opaque glyph cores and circle remain unchanged.
+from PIL import ImageFilter
+w,h=rest.size
+mask=Image.new('L',(w,h))
+for y in range(h):
+ for x in range(int(w*193/460),min(w,int(w*443/460))):
+  if min(rest.getpixel((x,y)))>230:mask.putpixel((x,y),255)
+mask=mask.filter(ImageFilter.MinFilter(3))
+assert mask.getbbox(), 'No opaque text pixels found for stationary-content check'
+foreground={}
+for name in ['hold-1','drag-left','drag-right','circle-hold']:
+ diff=ImageChops.difference(rest,image(name))
+ foreground[name]=sum(ImageStat.Stat(diff,mask).mean)/3
+ assert foreground[name]==0,(name,foreground[name])
+(p/'stationary-text.json').write_text(json.dumps(foreground,indent=2))
+print('PREMIUM_FIXED_TEXT_PASS',foreground,flush=True)
