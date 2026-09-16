@@ -13,7 +13,7 @@ function harness(props={},scroll=false){
  let state,calls=0;const events=[];
  const tree=l.render(LiquidPressable,{width:230,height:61,label:'Registrar +',onPress:()=>calls++,onPhase:e=>events.push(e),...props,children:p=>{state=p;return null;}});
  l.flushEffects();const g=l.gestures.at(-1),evt=(x,y)=>({x,y,numberOfPointers:1});
- const manager={fail:()=>g.handlers.onFinalize({},false)};
+ const manager={activate:()=>{},fail:()=>g.handlers.onFinalize({},false)};
  return {l,state,g,tree,events,calls:()=>calls,
   down(x=115,y=30){g.handlers.onBegin(evt(x,y));g.handlers.onTouchesDown({numberOfTouches:1,allTouches:[{x,y}]},manager);},
   move(x,y){g.handlers.onTouchesMove({numberOfTouches:1,allTouches:[{x,y}]},manager);g.handlers.onUpdate({...evt(x,y),velocityX:800,velocityY:80});},
@@ -29,7 +29,7 @@ test('critical release, zero inherited velocity and no visible overshoot',()=>{
 test('entry starts from actual pressure; no seed step or minimum-duration timeout',()=>{
  const s=fs.readFileSync(path.join(root,'src/liquid/LiquidPressable.tsx'),'utf8');
  assert.doesNotMatch(s,/Math.max\(LOCAL_GLASS.contactSeed|setTimeout|setInterval/);
- const h=harness();h.down();assert.equal(h.l.animations[0].config.duration,P.entryMs);h.up();assert.equal(h.calls(),1);
+ const h=harness();assert.equal(h.g.config.manualActivation,true);h.down();assert.equal(h.l.animations[0].config.duration,P.entryMs);h.up();assert.equal(h.calls(),1);
 });
 test('release after lateral drag keeps the optical center stationary',()=>{
  const h=harness();h.down(80,30);h.move(150,30);h.up(150,30);
@@ -75,5 +75,10 @@ test('both interior bevels compress inward while the outer border stays fixed',(
 test('ten-minute validation configuration and static drawing invariants stay explicit',()=>{
  const s=fs.readFileSync(path.join(root,'qa/performance/run.py'),'utf8');assert.match(s,/range\(20\)/);
  const h=fs.readFileSync(path.join(root,'src/home/HomeScreen.tsx'),'utf8');assert.match(h,/PremiumScrollContext.Provider/);assert.match(h,/useNativeDriver: true/);
+});
+test('offscreen preparation has no gesture or render-loop input',()=>{
+ const s=fs.readFileSync(path.join(root,'src/liquid/prepareOpticalPipeline.ts'),'utf8');
+ assert.match(s,/MakeOffscreen/);assert.match(s,/pressure:\[1\]/);assert.doesNotMatch(s,/useFrameCallback|setInterval|withRepeat/);
+ const v=fs.readFileSync(path.join(root,'src/liquid/useNativeMaterialCache.ts'),'utf8');assert.match(v,/gpuPreparation.current/);assert.match(v,/makeNonTextureImage/);
 });
 console.log(`${n} premium behavior checks passed; not a native tactile or FPS certification.`);

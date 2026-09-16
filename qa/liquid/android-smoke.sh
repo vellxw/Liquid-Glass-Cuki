@@ -27,8 +27,8 @@ cleanup(){
 trap cleanup EXIT
 python qa/liquid/android-smoke.py
 python qa/liquid/native-perf.py
-python qa/performance/run.py
+if [ "${CUKI_QUICK_NATIVE:-0}" != "1" ]; then python qa/performance/run.py; fi
 python qa/liquid/home-smoke.py
-python qa/performance/trace-report.py
+if [ "${CUKI_QUICK_NATIVE:-0}" != "1" ]; then python qa/performance/trace-report.py; fi
 
 python qa/premium/scroll-smoke.py

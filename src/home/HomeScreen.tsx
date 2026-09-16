@@ -35,7 +35,7 @@ export function HomeScreen({
   const blurTarget = useRef<View | null>(null);
   const [resourceEpoch,setResourceEpoch]=useState(0);
   const nativeScroll=useMemo(()=>Gesture.Native(),[]);
-  const resourceRevision=useMemo(()=>({assets,resourceEpoch}),[assets,resourceEpoch]);
+  const resourceRevision=useMemo(()=>({assets,resourceEpoch,width,height}),[assets,resourceEpoch,width,height]);
   const scrollScope=useMemo(()=>({gesture:nativeScroll,enabled:layout.needsScroll,resourceRevision}),[nativeScroll,layout.needsScroll,resourceRevision]);
   const refreshBackdrop=useCallback(()=>setResourceEpoch(value=>value+1),[]);
   const scrollY = useRef(new Animated.Value(0)).current;

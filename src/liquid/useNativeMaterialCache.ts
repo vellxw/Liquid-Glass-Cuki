@@ -46,8 +46,10 @@ async function captureBackdrop(host:RefObject<View|null>,target:RefObject<View|n
  * Stale async results never replace a newer revision; installation waits for REST.
  * No arbitrary live RN backdrop: callers invalidate after scene changes/scroll end.
  */
-export function useNativeMaterialCache(physics:LiquidPhysics,target?:RefObject<View|null>,revision?:unknown){
+export function useNativeMaterialCache(physics:LiquidPhysics,target?:RefObject<View|null>,revision?:unknown,
+  prepareGpu?:(material:SkImage,backdrop:SkImage|null)=>void){
   const source=useRef<View>(null),host=useRef<View>(null);
+  const gpuPreparation=useRef(prepareGpu);gpuPreparation.current=prepareGpu;
   const [cache,setCache]=useState<Cache|null>(null);
   const alive=useRef(true),generation=useRef(0),capturing=useRef(false);
   const wanted=useRef(false),pending=useRef<Cache|null>(null);
@@ -70,12 +72,16 @@ export function useNativeMaterialCache(physics:LiquidPhysics,target?:RefObject<V
     const version=generation.current;
     void (async()=>{
       try {
-        const material=await makeImageFromView(source);
-        if(!material)throw new Error('Empty native material snapshot');
+        const captured=await makeImageFromView(source);
+        if(!captured)throw new Error('Empty native material snapshot');
+        // Detach a potentially external native texture once, outside the gesture.
+        const material=captured.makeNonTextureImage()??captured;
         let backdrop:SkImage|null=null;
         try{backdrop=await captureBackdrop(host,target,material.width(),material.height());}
         catch(error){console.warn('[premium-backdrop]',String(error));}
         if(!alive.current||version!==generation.current)return;
+        try{gpuPreparation.current?.(material,backdrop);}
+        catch(error){console.warn('[premium-gpu-prepare]',String(error));}
         pending.current={material,backdrop};pendingOnUI.value=true;install();
         console.log('[premium-cache]',JSON.stringify({revision:version,width:material.width(),height:material.height(),backdrop:!!backdrop}));
       }catch(error){

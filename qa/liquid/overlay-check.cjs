@@ -50,7 +50,8 @@ function nodes(n){if(!n||typeof n!=='object')return [];if(Array.isArray(n))retur
  return [n,...nodes(n.props?.children)];}
 const normal=nodes(GlassButton({variant:'primary',label:'Registrar +',scale:1}));
 const local=nodes(LocalRegisterArtwork({physics,scale:1,label:'Registrar +'}));
-function circleProps(list){return list.filter(n=>n.type==='Circle').map(n=>({...n.props,
+function circleProps(list){return list.filter(n=>n.type==='circle').map(n=>({...n.props,
  fill: typeof n.props.fill==='string'&&n.props.fill.startsWith('url(')?'same-circle-gradient':n.props.fill}));}
+assert.equal(circleProps(local).length,2,'Circle test must not pass on an empty selection');
 assert.deepEqual(circleProps(local),circleProps(normal));
 console.log('PASS fixed native plus insert: original circle geometry/fill/stroke, no transform, shader sampling exclusion.');

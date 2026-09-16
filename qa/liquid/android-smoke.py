@@ -150,6 +150,11 @@ switch('Referencia estática');time.sleep(1.5)
 assert find(hierarchy(),'lab-register') is None,'Static baseline still contains the interaction renderer'
 original=capture('original-svg-rest')
 switch('Referencia estática');time.sleep(.5)
+for _ in range(30):
+    ready_node=find(hierarchy(),'lab-ready')
+    if ready_node is not None and ready_node.get('text')=='Motor: listo':break
+    time.sleep(.2)
+else:raise RuntimeError('Restored material was not ready before the first contact')
 # Persistent renderer is already visible in REST. No discarded warmup contact.
 
 # Android damage-based screenrecord contains actual native frames, not a synthesized tween.
@@ -160,7 +165,7 @@ record=sp.Popen(['adb','shell','screenrecord','--bit-rate','6000000','--time-lim
 video_origin=time.monotonic();stages=[]
 time.sleep(.8)
 rest=capture('rest')
-run_path('A-quick-tap',path_events([point(.52,.38)]*2,90));counter(1)
+run_path('A-quick-tap',[(0,0,*point(.52,.38)),(90,1,*point(.52,.38))]);counter(1)
 shots=run_path('B-hold-1-second',path_events([point(.50,.38)]*2,3300),[(.8,'hold-1'),(1.9,'hold-2')])
 pressed=shots['hold-1'];stable=mae(pressed,shots['hold-2']);counter(2)
 settled=capture('settled')

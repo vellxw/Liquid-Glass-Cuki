@@ -131,7 +131,7 @@ export function LiquidPressable({ width, height, style, label, onPress, disabled
         ? withTiming(0,{duration:PRESS.reducedDuration,reduceMotion:ReduceMotion.Never},complete)
         : withSpring(0,{...SPRINGS.settle,reduceMotion:ReduceMotion.Never},complete);
     };
-    const pan=Gesture.Pan().enabled(!blocked).minDistance(0).maxPointers(1)
+    const pan=Gesture.Pan().enabled(!blocked).minDistance(0).maxPointers(1).manualActivation(true)
       .shouldCancelWhenOutside(false)
       .onBegin(event=>{
         'worklet';
@@ -148,8 +148,11 @@ export function LiquidPressable({ width, height, style, label, onPress, disabled
       .onTouchesDown((event,manager)=>{
         'worklet'; const t=event.allTouches[0];
         if(event.numberOfTouches!==1 || !accepted.value || !t || !insideCapsule(t.x,t.y,width,height)){
-          release(false);manager.fail();
+          release(false);manager.fail();return;
         }
+        // DOWN must activate even when Android delivers no MOVE before UP.
+        // Otherwise a perfectly still tap ends the Pan in FAILED, not END.
+        manager.activate();
       })
       .onTouchesMove((event,manager)=>{
         'worklet'; const t=event.allTouches[0];

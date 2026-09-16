@@ -27,7 +27,7 @@ function harness(options={}) {
   const g=l.gestures.at(-1);
   let failed=false;
   const evt=(x=115,y=30.5)=>({x,y,numberOfPointers:1});
-  const manager={fail:()=>{failed=true;g.handlers.onFinalize({},false);}};
+  const manager={activate:()=>{},fail:()=>{failed=true;g.handlers.onFinalize({},false);}};
   return {l,tree,g,events,physics,commits:()=>commits,
     down(x=115,y=30.5){failed=false;g.handlers.onBegin(evt(x,y));g.handlers.onTouchesDown({numberOfTouches:1,allTouches:[{id:0,x,y}]},manager);},
     move(x,y){g.handlers.onTouchesMove({numberOfTouches:1,allTouches:[{id:0,x,y}]},manager);g.handlers.onUpdate({x,y,velocityX:0,velocityY:0});},
@@ -155,7 +155,7 @@ test('haptics off does not disable the action',()=>{
 test('haptic grammar drops stale events and coalesces short contacts',()=>{
   const l=createLoader();const f=l.load(path.join(root,'src/liquid/haptics.ts')).createHapticGate();
   f('contact',Date.now()-500,'contact-and-commit');assert.equal(l.haptics.length,0);
-  f('contact',Date.now(),'contact-and-commit');f('commit',Date.now(),'contact-and-commit');assert.equal(l.l?.haptics?.length ?? l.haptics.length,1);
+  f('contact',Date.now(),'contact-and-commit');f('commit',Date.now(),'contact-and-commit');assert.equal(l.haptics.length,1);
 });
 test('reduced motion takes a direct timing path, never the large spring',()=>{
   const h=harness({reduced:true});h.down();assert.equal(h.l.animations[0].kind,'timing');h.up();assert.equal(h.l.animations[1].kind,'timing');
