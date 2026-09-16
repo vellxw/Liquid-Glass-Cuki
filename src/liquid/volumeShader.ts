@@ -1,3 +1,4 @@
+import { PREMIUM_PRESS as P } from './premiumPress.tokens';
 /** Native artwork stays mounted and unchanged at all times. Skia contributes only
  * the signed optical difference caused by the local negative-height field.
  * Zero pressure or zero local support yields a truly transparent pixel, not a
@@ -46,9 +47,9 @@ half4 main(float2 p){
   float q=dot(d,d)/(radius*radius);
   if(q>=2.25) return half4(0.0);
   // The native plus is a rigid insert, not refracted lettering or a gel mesh.
-  // Guard includes the full 3.4dp sampling bound plus a bilinear footprint.
+  // Guard includes the full 2.75dp sampling bound plus a bilinear footprint.
   float insertDistance=length(p-protectedCircle.xy)-protectedCircle.z;
-  float insertMask=protectedCircle.z>0.0?smoothstep(4.4,6.4,insertDistance):1.0;
+  float insertMask=protectedCircle.z>0.0?smoothstep(${P.maxRefraction+1},${P.maxRefraction+2.2},insertDistance):1.0;
   if(insertMask==0.0) return half4(0.0);
 
   float a=max(0.0,1.0-q),b=max(0.0,1.0-q/2.25);
@@ -67,8 +68,10 @@ half4 main(float2 p){
   float3 n0=normalize(float3(-baseGrad,1.0));
   float3 n=normalize(float3(-(baseGrad+grad),1.0));
   // Inward height shifts the inner face in perspective. Slopes refract independently.
-  float2 shift=(grad*9.5+float2(0.0,z*.78))*pin;
-  shift*=3.4/sqrt(3.4*3.4+dot(shift,shift));
+  float2 shift=(grad*${P.refraction}+float2(0.0,z*${P.projection}))*pin;
+  float band=max(0.0,1.0-edge/18.0);
+  shift.y+=${P.bevelTravel}*(depth/${P.depth})*pressure*k*pin*band*band*sign(p.y-rr);
+  shift*=${P.maxRefraction}/sqrt(${P.maxRefraction**2}+dot(shift,shift));
   float2 sampleAt=clamp(p+shift,float2(.5),size-float2(.5));
   half4 face=material.eval(sampleAt);
   // Preserve alpha/coverage: no opaque pressure disk, no changed outer silhouette.
@@ -81,8 +84,11 @@ half4 main(float2 p){
   float slopeDelta=dot(n,float3(-.34,-.48,.808))-dot(n0,float3(-.34,-.48,.808));
   float support=k*pin;
   // Signed redistribution of reflection, with very weak center AO. No isolated circle.
-  rgb+=lighting*(float3(.65,.82,.92)*coldDelta*.50+float3(.89,.80,.68)*warmDelta*.12+slopeDelta*.16)*pin;
-  rgb*=1.0-lighting*.035*abs(pressure)*support;
+  // Achromatic modulation of EXISTING reflections; no new golden/cyan emission.
+  // Keep RGB ratios rather than adding an arbitrary colored light patch.
+  float luminanceChange=(coldDelta*.40+warmDelta*.08+slopeDelta*.12)*pin;
+  rgb*=clamp(1.0+lighting*luminanceChange,0.82,1.18);
+  rgb*=1.0-lighting*.025*abs(pressure)*support;
   if(debug>.5){
     float mark=1.0-smoothstep(.35,.85,abs(length(d)-radius));
     rgb=mix(rgb,float3(.3,.85,.65),mark*.7);

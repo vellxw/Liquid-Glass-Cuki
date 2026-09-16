@@ -2,31 +2,29 @@ import { memo, useCallback, useId, useMemo, useState, type RefObject } from 'rea
 import { Platform, StyleSheet, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import Svg,{ Circle,Defs,G,LinearGradient,Stop } from 'react-native-svg';
-import Animated, {useAnimatedStyle} from 'react-native-reanimated';
 import { RegisterButtonMaterial } from './RegisterButtonMaterial';
 import { HomeIcon } from './HomeIcon';
 import { HomeText } from './HomeText';
 import { GLASS,HOME_REFERENCE,PX } from './tokens';
 import { VolumeSurface,makeProofSubstrate } from '../liquid/VolumeSurface';
 import { useGlassPerformance } from '../liquid/performance';
-import { contentDepth } from '../liquid/volumeField';
+import { usePremiumScroll } from '../liquid/PremiumScrollScope';
 import type { LiquidPhysics } from '../liquid/types';
 
 type Props={physics:LiquidPhysics;scale:number;label:string;fontFamily?:string;
   blurTarget?:RefObject<View|null>;enabled?:boolean;debug?:boolean;proofGrid?:boolean;
   contentFollow?:boolean;lighting?:boolean;onReady?:(ready:boolean)=>void};
 /** The optical surface is always Skia. No capsule scale/down, no per-press snapshots.
- * The plus insert stays fixed in its original SVG compositing pass. Crisp text may follow .9dp. */
+ * The plus insert stays fixed in its original SVG compositing pass. The native text is fixed as well; no follow-through transform. */
 export const LocalRegisterArtwork=memo(function LocalRegisterArtwork({physics,scale,label,fontFamily,blurTarget,enabled=true,
-  debug=false,proofGrid=false,contentFollow=true,lighting=true,onReady}:Props){
+  debug=false,proofGrid=false,contentFollow: _contentFollow=false,lighting=true,onReady}:Props){
   const performance=useGlassPerformance();
+  const scroll=usePremiumScroll();
   const id=`volume${useId().replace(/[^a-zA-Z0-9]/g,'')}`,s=PX*scale,w=460*s,h=122*s;
   const canBlur=performance.nativeBlur && (Platform.OS!=='android'||!!blurTarget);
   const [supported,setSupported]=useState(true);
   const ready=useCallback((value:boolean)=>{setSupported(value);onReady?.(value);},[onReady]);
   const substrate=useMemo(()=>proofGrid?makeProofSubstrate(w,h):null,[proofGrid,w,h]);
-  const labelStyle=useAnimatedStyle(()=>({transform:[{translateY:enabled && contentFollow && supported && performance.contentFollow?
-    contentDepth(300*s,61*s,physics.contactX.value,physics.contactY.value,physics.pressure.value,physics.reduceMotion.value):0}]}),[enabled,contentFollow,performance.contentFollow,supported,s]);
   return <View pointerEvents="none" style={{width:w,height:h}}>
     {canBlur && <View style={[StyleSheet.absoluteFill,{borderRadius:h/2,overflow:'hidden'}]}>
       <BlurView intensity={GLASS.blur} tint="dark" blurTarget={blurTarget}
@@ -34,7 +32,7 @@ export const LocalRegisterArtwork=memo(function LocalRegisterArtwork({physics,sc
         style={[StyleSheet.absoluteFill,{opacity:GLASS.blurOpacity}]}/>
     </View>}
     <VolumeSurface key={`${w}:${h}`} physics={physics} enabled={enabled} debug={debug} lighting={lighting}
-      substrate={substrate} backdropTarget={blurTarget} onReady={ready} protectedCircle={[118*s,61*s,32.5*s]}>
+      substrate={substrate} backdropTarget={blurTarget} onReady={ready} resourceRevision={scroll?.resourceRevision} protectedCircle={[118*s,61*s,32.5*s]}>
       <View style={[StyleSheet.absoluteFill,{borderRadius:h/2,overflow:'hidden'}]}>
         <Svg width={w} height={h} viewBox="0 0 460 122">
           <Defs><LinearGradient id={`${id}-circle`} x1="0" y1="0" x2="1" y2="1">
@@ -47,11 +45,11 @@ export const LocalRegisterArtwork=memo(function LocalRegisterArtwork({physics,sc
         </Svg>
       </View>
     </VolumeSurface>
-    <Animated.View style={[StyleSheet.absoluteFill,labelStyle]}>
+    <View style={StyleSheet.absoluteFill}>
       <View renderToHardwareTextureAndroid={performance.cacheArtwork} shouldRasterizeIOS={performance.cacheArtwork} style={StyleSheet.absoluteFill}>
       <HomeText x={193} baseline={HOME_REFERENCE.bodyTop+75} width={254} size={34}
         scale={scale} fontFamily={fontFamily}>{label}</HomeText>
       </View>
-    </Animated.View>
+    </View>
   </View>;
 });

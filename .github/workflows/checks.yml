@@ -24,6 +24,7 @@ jobs:
       - run: node qa/liquid/pipeline-check.cjs
       - run: node qa/liquid/overlay-check.cjs
       - run: node qa/performance/check.cjs
+      - run: node qa/premium/check.cjs
       - run: python -m unittest discover -s qa/performance -p 'test_*.py' -v
       - run: npm run export:android
       - run: npm run export:ios

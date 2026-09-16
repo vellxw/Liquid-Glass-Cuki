@@ -71,9 +71,9 @@ function createLoader(options = {}) {
     withTiming: (target, config, complete) => { animations.push({ kind: 'timing', target, config, complete }); return target; },
   };
   const rngh = { GestureDetector: 'GestureDetector', GestureHandlerRootView: 'GestureHandlerRootView',
-    Gesture: { Pan() {
+    Gesture: { Native(){return {};}, Pan() {
       const g = { config: {}, handlers: {} };
-      for (const k of ['enabled','minDistance','maxPointers','shouldCancelWhenOutside']) g[k] = v => { g.config[k]=v; return g; };
+      for (const k of ['enabled','minDistance','maxPointers','shouldCancelWhenOutside','simultaneousWithExternalGesture']) g[k] = v => { g.config[k]=v; return g; };
       for (const k of ['onBegin','onTouchesDown','onTouchesMove','onUpdate','onEnd','onFinalize']) g[k] = v => { g.handlers[k]=v; return g; };
       gestures.push(g); return g;
     } },

@@ -24,14 +24,14 @@ test('relief and refraction vanish together in REST',()=>{
 test('small negative release overshoot is bounded, not a growing ripple',()=>{
  const a=volumeSample(115,30,115,30,230,61,-.01);assert.ok(a.z>0&&a.z<=VOLUME.depth*.010001);
 });
-test('native letters only have bounded sub-dp rigid follow-through',()=>{
- for(const p of [-.03,0,.5,1,1.03])for(let x=0;x<230;x+=3){const d=contentDepth(150,30,x,30,p);assert.ok(d>=0&&d<=.9);}
- assert.equal(contentDepth(150,30,150,30,0),0);assert.equal(contentDepth(150,30,150,30,1,true),.12);
+test('native letters have exactly zero movement, even with reduced motion',()=>{
+ for(const p of [-.03,0,.5,1,1.03])for(let x=0;x<230;x+=3){const d=contentDepth(150,30,x,30,p);assert.equal(d,0);}
+ assert.equal(contentDepth(150,30,150,30,0),0);assert.equal(contentDepth(150,30,150,30,1,true),0);
 });
 test('cache preparation is not coupled to every press or render frame',()=>{
  const s=read('src/liquid/VolumeSurface.tsx');assert.doesNotMatch(s,/makeImageFromView|nativeBacking|activeTexture|useFrameCallback|scheduleOnRN|setTimeout|setInterval/);
  assert.match(s,/pressure:enabled\?\(performance.coalesce\?optical.value.p:pressure.value\):0/);
- const c=read('src/liquid/useNativeMaterialCache.ts');assert.match(c,/if\(started.current\)return/);assert.match(c,/canInstallCache/);
+ const c=read('src/liquid/useNativeMaterialCache.ts');assert.match(c,/generation.current/);assert.match(c,/capturing.current/);assert.match(c,/canInstallCache/);
  assert.doesNotMatch(c,/withTiming|withSpring|useFrameCallback/);
 });
 test('underlay is a distinct shader input, actually refracted',()=>{
